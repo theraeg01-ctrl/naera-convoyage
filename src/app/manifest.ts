@@ -20,14 +20,12 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
+    // Raccourcis par espace : l'accès reste contrôlé par le serveur (401/403 sinon).
     shortcuts: [
-      {
-        name: "Nouvelle mission",
-        short_name: "Nouvelle",
-        url: "/missions/new",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-      },
-      { name: "Missions", url: "/missions" },
+      { name: "Espace professionnel", short_name: "Pro", url: "/pro/missions" },
+      { name: "Mes convoyages", short_name: "Client", url: "/client/missions" },
+      { name: "Missions convoyeur", short_name: "Convoyeur", url: "/driver" },
+      { name: "Back-office Naera", short_name: "Naera", url: "/admin/missions" },
     ],
   };
 }

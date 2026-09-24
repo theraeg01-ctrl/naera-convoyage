@@ -1,23 +1,50 @@
+import type { MissionScope } from "@/core/access/scope";
 import { formatMissionReference } from "@/core/mission/reference";
 import type { Mission } from "@/core/mission/types";
 import { zonedLocalToUtcIso } from "@/core/shared/timezone";
 import type { AppSettings } from "@/core/settings/types";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { MissionRepository, NewMission, Repositories, SettingsRepository } from "../types";
 import { getPrismaClient } from "./client";
-import { MISSION_INCLUDE, toDomainMission, toMissionCreateInput } from "./mission-mapper";
+import { PrismaDemoStore, PrismaDirectoryRepository } from "./directory-repository";
+import { ACTIVE_ASSIGNMENT_STATUSES, MISSION_INCLUDE, toDomainMission, toMissionCreateInput } from "./mission-mapper";
 import { settingsToRows, toAppSettings, DEFAULT_PROFILE_NAME } from "./settings-mapper";
+
+/** Isolation multi-tenant : le périmètre devient une clause WHERE de la requête. */
+export function missionScopeWhere(scope: MissionScope): Prisma.MissionWhereInput {
+  switch (scope.kind) {
+    case "ALL":
+      return {};
+    case "BUSINESS":
+      return { businessAccountId: scope.businessAccountId };
+    case "PERSONAL":
+      return { personalCustomerId: scope.personalCustomerId };
+    case "DRIVER":
+      return {
+        assignments: {
+          some: { driverProfileId: scope.driverProfileId, status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] } },
+        },
+      };
+  }
+}
 
 class PrismaMissionRepository implements MissionRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async list(): Promise<Mission[]> {
-    const rows = await this.prisma.mission.findMany({ include: MISSION_INCLUDE, orderBy: { scheduledAt: "desc" } });
+  async list(scope: MissionScope): Promise<Mission[]> {
+    const rows = await this.prisma.mission.findMany({
+      where: missionScopeWhere(scope),
+      include: MISSION_INCLUDE,
+      orderBy: { scheduledAt: "desc" },
+    });
     return rows.map(toDomainMission);
   }
 
-  async findById(id: string): Promise<Mission | null> {
-    const row = await this.prisma.mission.findUnique({ where: { id }, include: MISSION_INCLUDE });
+  async findById(id: string, scope: MissionScope): Promise<Mission | null> {
+    const row = await this.prisma.mission.findFirst({
+      where: { id, ...missionScopeWhere(scope) },
+      include: MISSION_INCLUDE,
+    });
     return row ? toDomainMission(row) : null;
   }
 
@@ -40,7 +67,33 @@ class PrismaMissionRepository implements MissionRepository {
 
   async save(mission: Mission): Promise<Mission> {
     const date = (iso: string | undefined) => (iso ? new Date(iso) : null);
+    const assignment = mission.assignment;
     await this.prisma.$transaction([
+      // Une seule affectation active : les autres sont annulées.
+      this.prisma.missionAssignment.updateMany({
+        where: {
+          missionId: mission.id,
+          status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] },
+          ...(assignment ? { driverProfileId: { not: assignment.driverProfileId } } : {}),
+        },
+        data: { status: "CANCELLED" },
+      }),
+      ...(assignment
+        ? [
+            this.prisma.missionAssignment.upsert({
+              where: {
+                missionId_driverProfileId: { missionId: mission.id, driverProfileId: assignment.driverProfileId },
+              },
+              create: {
+                missionId: mission.id,
+                driverProfileId: assignment.driverProfileId,
+                status: assignment.status,
+                assignedAt: new Date(assignment.assignedAt),
+              },
+              update: { status: assignment.status },
+            }),
+          ]
+        : []),
       this.prisma.mission.update({
         where: { id: mission.id },
         data: {
@@ -64,7 +117,7 @@ class PrismaMissionRepository implements MissionRepository {
         skipDuplicates: true,
       }),
     ]);
-    const saved = await this.findById(mission.id);
+    const saved = await this.findById(mission.id, { kind: "ALL" });
     if (!saved) throw new Error(`Mission introuvable après enregistrement : ${mission.id}`);
     return saved;
   }
@@ -121,8 +174,8 @@ export function createPrismaRepositories(connectionString: string): Repositories
     kind: "postgres",
     missions: new PrismaMissionRepository(prisma),
     settings: new PrismaSettingsRepository(prisma),
-    // En production, les données de démonstration s'injectent uniquement via `npm run db:seed`.
-    demoSeeded: async () => true,
-    markDemoSeeded: async () => undefined,
+    directory: new PrismaDirectoryRepository(prisma),
+    // Les données de démonstration ne s'injectent qu'explicitement (`npm run db:seed`).
+    demo: new PrismaDemoStore(prisma),
   };
 }

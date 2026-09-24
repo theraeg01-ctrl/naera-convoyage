@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { BottomNav, Sidebar } from "@/components/layout/navigation";
 import { OfflineBanner } from "@/components/layout/offline-banner";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker";
 import { THEME_SCRIPT } from "@/components/layout/theme-script";
@@ -45,7 +44,6 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  const storageLabel = process.env.DATABASE_URL ? "Base PostgreSQL" : "Stockage local · démo";
   return (
     <html lang="fr" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <head>
@@ -58,19 +56,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           Aller au contenu
         </a>
-        <div className="flex min-h-dvh">
-          <Sidebar storageLabel={storageLabel} />
-          <div className="min-w-0 flex-1">
-            <OfflineBanner />
-            <main
-              id="contenu"
-              className="mx-auto w-full max-w-5xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-32 sm:px-6 lg:px-10 lg:pt-10 lg:pb-16"
-            >
-              {children}
-            </main>
-          </div>
-        </div>
-        <BottomNav />
+        <OfflineBanner />
+        {children}
         <ServiceWorkerRegister />
       </body>
     </html>

@@ -120,7 +120,7 @@ export function NewMissionFlow({ config }: { config: NewMissionConfig }) {
         setSavePending(false);
         return;
       }
-      router.push(`/missions/${result.id}?nouvelle=1`);
+      router.push(`/admin/missions/${result.id}?nouvelle=1`);
     } catch {
       setSaveError(NETWORK_ERROR);
       setSavePending(false);
@@ -135,7 +135,7 @@ export function NewMissionFlow({ config }: { config: NewMissionConfig }) {
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Nouvelle mission</h1>
           <Link
-            href="/"
+            href="/admin"
             aria-label="Annuler et revenir à l'accueil"
             className="flex size-11 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-foreground"
           >

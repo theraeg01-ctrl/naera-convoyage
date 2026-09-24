@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from "@/core/settings/defaults";
+import { normalizeSettings } from "@/core/settings/normalize";
 import { appSettingsSchema } from "@/core/settings/schema";
 import type { AppSettings } from "@/core/settings/types";
 import { getRepositories } from "@/repositories";
@@ -12,8 +13,9 @@ export async function getSettings(): Promise<AppSettings> {
   const repositories = await getRepositories();
   const stored = await repositories.settings.get();
   if (!stored) return structuredClone(DEFAULT_SETTINGS);
-  const parsed = appSettingsSchema.safeParse(stored);
-  if (parsed.success) return stored;
+  const normalized = normalizeSettings(stored);
+  const parsed = appSettingsSchema.safeParse(normalized);
+  if (parsed.success) return normalized;
   logTechnicalError("Paramètres sauvegardés invalides, valeurs par défaut utilisées", parsed.error);
   return structuredClone(DEFAULT_SETTINGS);
 }

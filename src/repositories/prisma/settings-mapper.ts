@@ -1,5 +1,4 @@
-import { parseAppSettings } from "@/core/settings/schema";
-import type { AppSettings, OptionPricing, ServiceOptionDef } from "@/core/settings/types";
+import type { AppSettings, OptionPricing, PackageTier, ServiceOptionDef } from "@/core/settings/types";
 import type { Package, PricingSettings, Prisma, ServiceOption } from "@/generated/prisma/client";
 
 export const DEFAULT_PROFILE_NAME = "Grille standard";
@@ -17,9 +16,9 @@ function optionPricing(row: ServiceOption): OptionPricing {
   }
 }
 
-/** Reconstitue les paramètres depuis les tables ; validés par le même schéma Zod que partout ailleurs. */
+/** Reconstitue les paramètres depuis les tables ; normalisés et validés ensuite par le service des paramètres. */
 export function toAppSettings(row: PricingSettings, packages: Package[], options: ServiceOption[]): AppSettings {
-  return parseAppSettings({
+  return {
     company: { name: row.companyName, baseCity: row.baseCity },
     pricing: {
       vatPercent: num(row.vatPercent),
@@ -29,7 +28,7 @@ export function toAppSettings(row: PricingSettings, packages: Package[], options
       marginFixedAmount: num(row.marginFixedAmount),
       minimumMarginPercent: num(row.minimumMarginPercent),
       roundingMode: row.roundingMode,
-      fixedFees: row.fixedFees,
+      fixedFees: row.fixedFees as unknown as AppSettings["pricing"]["fixedFees"],
       variableFeePerKm: num(row.variableFeePerKm),
       quoteValidityDays: row.quoteValidityDays,
     },
@@ -37,7 +36,7 @@ export function toAppSettings(row: PricingSettings, packages: Package[], options
       petrolPrice: num(row.petrolPrice),
       dieselPrice: num(row.dieselPrice),
       electricityPrice: num(row.electricityPrice),
-      consumption: row.consumption,
+      consumption: row.consumption as unknown as AppSettings["fuel"]["consumption"],
     },
     times: {
       departureFormalitiesMin: row.departureFormalitiesMin,
@@ -52,10 +51,10 @@ export function toAppSettings(row: PricingSettings, packages: Package[], options
       taxiBaseFare: num(row.taxiBaseFare),
       taxiPerKm: num(row.taxiPerKm),
       defaultStrategy: row.defaultStrategy,
-      weights: row.scoreWeights,
+      weights: row.scoreWeights as unknown as AppSettings["transport"]["weights"],
     },
     packages: packages.map((pkg) => ({
-      id: pkg.code,
+      id: pkg.code as PackageTier["id"],
       name: pkg.name,
       minKm: pkg.minKm,
       maxKm: pkg.maxKm,
@@ -68,7 +67,7 @@ export function toAppSettings(row: PricingSettings, packages: Package[], options
       pricing: optionPricing(option),
       internalCost: num(option.internalCost),
     })),
-  });
+  };
 }
 
 export function settingsToRows(settings: AppSettings) {

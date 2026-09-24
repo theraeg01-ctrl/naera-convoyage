@@ -1,14 +1,12 @@
 /**
- * Initialise une base PostgreSQL : paramètres par défaut + missions de démonstration.
- * Usage : npm run db:seed (DATABASE_URL requis).
+ * Initialise une base PostgreSQL : paramètres par défaut + jeu de démonstration
+ * multi-portails (comptes, rôles, plans, convoyeurs, missions, factures).
+ * Usage : npm run db:seed (DATABASE_URL requis). Les données réelles sont conservées.
  */
 import "dotenv/config";
 import { DEFAULT_SETTINGS } from "../src/core/settings/defaults";
 import { createPrismaRepositories } from "../src/repositories/prisma/prisma-repositories";
-import { MissionService } from "../src/services/mission/mission-service";
-import { MockRoutingProvider } from "../src/services/routing/mock-routing-provider";
-import { RoutingService } from "../src/services/routing/routing-service";
-import { SimulationService } from "../src/services/simulation/simulation-service";
+import { DEMO_DATASET_VERSION, seedDemoDataset } from "../src/services/demo/demo-seeder";
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -20,17 +18,9 @@ async function main() {
     console.log("✓ Paramètres de tarification initialisés");
   }
 
-  const missions = new MissionService(
-    { ...repositories, demoSeeded: async () => false },
-    new SimulationService(new RoutingService(new MockRoutingProvider())),
-  );
-  const before = await repositories.missions.count();
-  await missions.seedDemo();
-  const after = await repositories.missions.count();
+  const report = await seedDemoDataset(repositories);
   console.log(
-    after > before
-      ? `✓ ${after - before} missions de démonstration créées`
-      : "• Missions déjà présentes : aucune donnée de démonstration ajoutée",
+    `✓ Jeu de démonstration v${DEMO_DATASET_VERSION} : ${report.missions} missions, ${report.invoices} factures`,
   );
 }
 

@@ -16,11 +16,17 @@ export type OptimizationStrategy = (typeof OPTIMIZATION_STRATEGIES)[number];
 export const PACKAGE_IDS = ["CITY", "LOCAL_PLUS", "REGIONAL", "FRANCE", "FRANCE_PLUS", "LONG_DISTANCE"] as const;
 export type PackageId = (typeof PACKAGE_IDS)[number];
 
+/**
+ * Options payantes de convoyage (par mission). Totalement indépendantes des
+ * abonnements professionnels (voir core/plans).
+ */
 export const SERVICE_OPTION_IDS = [
   "PHOTO_INSPECTION",
   "PHOTO_REPORT",
+  "REINFORCED_CHECK",
   "KEY_HANDOVER",
   "PRIORITY",
+  "GUARANTEED_SLOT",
   "WAITING",
   "WEEKEND",
   "HOLIDAY",
@@ -31,8 +37,10 @@ export type ServiceOptionId = (typeof SERVICE_OPTION_IDS)[number];
 export const SELECTABLE_OPTION_IDS = [
   "PHOTO_INSPECTION",
   "PHOTO_REPORT",
+  "REINFORCED_CHECK",
   "KEY_HANDOVER",
   "PRIORITY",
+  "GUARANTEED_SLOT",
 ] as const satisfies readonly ServiceOptionId[];
 export type SelectableOptionId = (typeof SELECTABLE_OPTION_IDS)[number];
 

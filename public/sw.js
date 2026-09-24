@@ -1,11 +1,13 @@
 /*
- * NAERA Convoyage — service worker (V1 « hors connexion léger »).
- * - Pages : réseau d'abord, copie en cache des écrans consultés (accueil,
- *   missions, détail mission) pour les relire si la connexion tombe.
+ * NAERA Convoyage — service worker (V2 « hors connexion léger », multi-portails).
+ * - Pages : réseau d'abord, copie en cache des écrans de mission consultés
+ *   (listes et fiches de chaque portail) pour les relire si la connexion tombe.
+ *   Seules les réponses 200 sont gardées (jamais un 401/403) ; le cache est
+ *   vidé à la déconnexion et au changement de profil.
  * - Ressources statiques versionnées (/_next/static) : cache d'abord.
  * - Jamais de cache pour l'API, les Server Actions ou les requêtes non GET.
  */
-const VERSION = "naera-v1";
+const VERSION = "naera-v2";
 const PAGES_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const MAX_PAGES = 40;
@@ -24,8 +26,14 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+const CACHEABLE_PAGES = [
+  /^\/(admin|pro|client)\/missions$/,
+  /^\/(admin|pro|client|driver)\/missions\/[0-9a-f-]{36}$/,
+  /^\/(admin|pro|client|driver)$/,
+];
+
 function isCacheablePage(url) {
-  return url.pathname === "/" || url.pathname === "/missions" || /^\/missions\/[0-9a-f-]{36}$/.test(url.pathname);
+  return CACHEABLE_PAGES.some((pattern) => pattern.test(url.pathname));
 }
 
 async function trimCache(cache) {
@@ -37,7 +45,7 @@ async function networkFirstPage(request) {
   const url = new URL(request.url);
   try {
     const response = await fetch(request);
-    if (response.ok && isCacheablePage(url)) {
+    if (response.status === 200 && !response.redirected && isCacheablePage(url)) {
       const cache = await caches.open(PAGES_CACHE);
       await cache.put(url.pathname, response.clone());
       await trimCache(cache);
@@ -45,7 +53,7 @@ async function networkFirstPage(request) {
     return response;
   } catch {
     const cache = await caches.open(PAGES_CACHE);
-    const cached = (await cache.match(url.pathname)) || (await cache.match("/"));
+    const cached = await cache.match(url.pathname);
     return cached || new Response(OFFLINE_HTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
   }
 }

@@ -15,10 +15,59 @@ datasource db {
 // Énumérations
 // ---------------------------------------------------------------------------
 
-enum UserRole {
+/// Rôle dans l'équipe Naera (back-office). Null = utilisateur externe.
+enum StaffRole {
   ADMIN
   DISPATCHER
-  DRIVER
+}
+
+/// Rôles initiaux d'un membre d'entreprise ; les permissions sont définies dans le code (core/access).
+enum BusinessRole {
+  OWNER
+  MANAGER
+  OPERATOR
+  BILLING
+}
+
+enum MemberStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum DriverStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssignmentStatus {
+  PROPOSED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+/// Canal de création d'une mission.
+enum MissionChannel {
+  BACKOFFICE
+  CLIENT_PORTAL
+  PRO_PORTAL
+  API
 }
 
 enum MissionStatus {
@@ -43,6 +92,7 @@ enum ProfessionalSegment {
   USED_CAR_DEALER
   DEALERSHIP
   RENTAL
+  FLEET
   OTHER
 }
 
@@ -155,16 +205,28 @@ enum OptionPricingType {
 // Utilisateurs, clients, véhicules
 // ---------------------------------------------------------------------------
 
+/// Identité de connexion. Un même utilisateur peut être membre Naera, membre
+/// d'une ou plusieurs entreprises, client particulier et/ou convoyeur.
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String
-  role      UserRole  @default(DISPATCHER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  missions  Mission[] @relation("MissionDriver")
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String
+  phone            String?
+  /// Rôle back-office Naera (null = utilisateur externe).
+  staffRole        StaffRole?
+  /// Identifiant chez le fournisseur d'authentification (à venir).
+  authSubject      String?           @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  personalCustomer PersonalCustomer?
+  memberships      BusinessMember[]
+  driverProfile    DriverProfile?
+  createdMissions  Mission[]         @relation("MissionCreatedBy")
 }
 
+/// Contact client figé sur une mission (nom, téléphone, e-mail au moment de la
+/// commande). Les comptes sont PersonalCustomer (particuliers) et BusinessAccount
+/// (entreprises) ; ce modèle historique est conservé pour ne perdre aucune donnée.
 model Customer {
   id               String               @id @default(uuid())
   type             CustomerType
@@ -208,96 +270,120 @@ model Vehicle {
 // ---------------------------------------------------------------------------
 
 model Mission {
-  id                 String        @id @default(uuid())
-  reference          String        @unique
-  status             MissionStatus @default(DRAFT)
-  isDemo             Boolean       @default(false)
+  id            String        @id @default(uuid())
+  reference     String        @unique
+  status        MissionStatus @default(DRAFT)
+  isDemo        Boolean       @default(false)
   /// Instant UTC de prise en charge ; date et heure locales (Paris) conservées telles que saisies.
-  scheduledAt        DateTime
-  scheduledDate      String
-  scheduledTime      String
+  scheduledAt   DateTime
+  scheduledDate String
+  scheduledTime String
 
-  pickupLabel        String
-  pickupCity         String?
-  pickupPostalCode   String?
-  pickupLat          Float?
-  pickupLng          Float?
-  dropoffLabel       String
-  dropoffCity        String?
-  dropoffPostalCode  String?
-  dropoffLat         Float?
-  dropoffLng         Float?
+  pickupLabel       String
+  pickupCity        String?
+  pickupPostalCode  String?
+  pickupLat         Float?
+  pickupLng         Float?
+  dropoffLabel      String
+  dropoffCity       String?
+  dropoffPostalCode String?
+  dropoffLat        Float?
+  dropoffLng        Float?
 
   routeKind          RouteKind
   distanceKm         Float
   durationMin        Int
   trafficDurationMin Int
-  tollsEur           Decimal       @db.Decimal(10, 2)
+  tollsEur           Decimal    @db.Decimal(10, 2)
   routeSummary       String
   routePolyline      String?
   routeSource        DataSource
 
-  strategy           OptimizationStrategy
-  dataMode           String
-  priceHT            Decimal       @db.Decimal(10, 2)
-  vatAmount          Decimal       @db.Decimal(10, 2)
-  priceTTC           Decimal       @db.Decimal(10, 2)
-  costTotal          Decimal       @db.Decimal(10, 2)
-  marginAmount       Decimal       @db.Decimal(10, 2)
+  strategy     OptimizationStrategy
+  dataMode     String
+  priceHT      Decimal              @db.Decimal(10, 2)
+  vatAmount    Decimal              @db.Decimal(10, 2)
+  priceTTC     Decimal              @db.Decimal(10, 2)
+  costTotal    Decimal              @db.Decimal(10, 2)
+  marginAmount Decimal              @db.Decimal(10, 2)
 
   /// Saisie d'origine (écran Nouvelle mission).
-  request            Json
+  request Json
   /// Détail complet du tarif au moment de l'enregistrement.
-  pricing            Json
+  pricing Json
 
-  startedAt          DateTime?
-  inspectedAt        DateTime?
-  drivingAt          DateTime?
-  deliveredAt        DateTime?
-  completedAt        DateTime?
-  notes              String?
+  startedAt   DateTime?
+  inspectedAt DateTime?
+  drivingAt   DateTime?
+  deliveredAt DateTime?
+  completedAt DateTime?
+  notes       String?
 
-  customerId         String?
-  customer           Customer?     @relation(fields: [customerId], references: [id])
-  vehicleId          String?
-  vehicle            Vehicle?      @relation(fields: [vehicleId], references: [id])
-  driverId           String?
-  driver             User?         @relation("MissionDriver", fields: [driverId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  vehicleId  String?
+  vehicle    Vehicle?  @relation(fields: [vehicleId], references: [id])
 
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  /// Rattachement (isolation des données) : entreprise OU particulier, jamais les deux.
+  channel            MissionChannel    @default(BACKOFFICE)
+  businessAccountId  String?
+  businessAccount    BusinessAccount?  @relation(fields: [businessAccountId], references: [id])
+  personalCustomerId String?
+  personalCustomer   PersonalCustomer? @relation(fields: [personalCustomerId], references: [id])
+  agencyId           String?
+  agency             BusinessAgency?   @relation(fields: [agencyId], references: [id])
+  costCenterId       String?
+  costCenter         CostCenter?       @relation(fields: [costCenterId], references: [id])
+  createdByUserId    String?
+  createdBy          User?             @relation("MissionCreatedBy", fields: [createdByUserId], references: [id])
+  /// Référence interne du client professionnel (bon de commande…).
+  customerReference  String?
 
-  cost               MissionCost?
-  transportOptions   TransportOption[]
-  quotes             Quote[]
-  photos             MissionPhoto[]
-  documents          MissionDocument[]
-  events             MissionEvent[]
-  signatures         MissionSignature[]
+  /// Contacts sur place, transmis au convoyeur.
+  pickupContactName   String?
+  pickupContactPhone  String?
+  dropoffContactName  String?
+  dropoffContactPhone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cost             MissionCost?
+  transportOptions TransportOption[]
+  quotes           Quote[]
+  photos           MissionPhoto[]
+  documents        MissionDocument[]
+  events           MissionEvent[]
+  signatures       MissionSignature[]
+  assignments      MissionAssignment[]
+  options          MissionOption[]
+  invoices         Invoice[]
 
   @@index([status])
   @@index([scheduledDate])
+  @@index([businessAccountId, scheduledDate])
+  @@index([personalCustomerId])
 }
 
 /// Coût interne Naera : jamais exposé au client.
 model MissionCost {
-  id             String  @id @default(uuid())
-  missionId      String  @unique
-  mission        Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  driver         Decimal @db.Decimal(10, 2)
-  access         Decimal @db.Decimal(10, 2)
-  fuel           Decimal @db.Decimal(10, 2)
-  tolls          Decimal @db.Decimal(10, 2)
-  returnCost     Decimal @db.Decimal(10, 2)
-  fixedFees      Decimal @db.Decimal(10, 2)
-  variableFees   Decimal @db.Decimal(10, 2)
-  options        Decimal @db.Decimal(10, 2)
-  other          Decimal @db.Decimal(10, 2)
-  total          Decimal @db.Decimal(10, 2)
-  totalMinutes   Int
-  fuelQuantity   Float
-  fuelUnit       String
-  fuelUnitPrice  Decimal @db.Decimal(10, 3)
+  id            String  @id @default(uuid())
+  missionId     String  @unique
+  mission       Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  driver        Decimal @db.Decimal(10, 2)
+  access        Decimal @db.Decimal(10, 2)
+  fuel          Decimal @db.Decimal(10, 2)
+  tolls         Decimal @db.Decimal(10, 2)
+  returnCost    Decimal @db.Decimal(10, 2)
+  fixedFees     Decimal @db.Decimal(10, 2)
+  variableFees  Decimal @db.Decimal(10, 2)
+  options       Decimal @db.Decimal(10, 2)
+  other         Decimal @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
+  totalMinutes  Int
+  fuelQuantity  Float
+  fuelUnit      String
+  fuelUnitPrice Decimal @db.Decimal(10, 3)
 }
 
 /// Solutions de transport convoyeur (aller / retour) comparées pour une mission.
@@ -326,20 +412,23 @@ model TransportOption {
 }
 
 model Quote {
-  id               String      @id @default(uuid())
-  number           String      @unique
-  missionId        String
-  mission          Mission     @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  status           QuoteStatus @default(DRAFT)
-  issuedAt         DateTime    @default(now())
-  validUntil       DateTime
-  priceHT          Decimal     @db.Decimal(10, 2)
-  vatAmount        Decimal     @db.Decimal(10, 2)
-  priceTTC         Decimal     @db.Decimal(10, 2)
-  lines            Json
-  customerSnapshot Json?
-  pdfUrl           String?
-  createdAt        DateTime    @default(now())
+  id                 String      @id @default(uuid())
+  number             String      @unique
+  missionId          String
+  mission            Mission     @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  /// Rattachement dénormalisé pour filtrer par locataire sans jointure.
+  businessAccountId  String?
+  personalCustomerId String?
+  status             QuoteStatus @default(DRAFT)
+  issuedAt           DateTime    @default(now())
+  validUntil         DateTime
+  priceHT            Decimal     @db.Decimal(10, 2)
+  vatAmount          Decimal     @db.Decimal(10, 2)
+  priceTTC           Decimal     @db.Decimal(10, 2)
+  lines              Json
+  customerSnapshot   Json?
+  pdfUrl             String?
+  createdAt          DateTime    @default(now())
 }
 
 model MissionPhoto {
@@ -441,18 +530,19 @@ model PricingSettings {
 /// Profil tarifaire : grille par défaut ("default") ou profil B2B
 /// (garages, marchands VO, concessions, loueurs).
 model PricingProfile {
-  id                 String               @id @default(uuid())
-  name               String
-  description        String?
-  segment            ProfessionalSegment?
-  isDefault          Boolean              @default(false)
-  marginPercent      Decimal?             @db.Decimal(6, 2)
-  discountPercent    Decimal?             @db.Decimal(6, 2)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  packages           Package[]
-  serviceOptions     ServiceOption[]
-  customers          Customer[]
+  id               String               @id @default(uuid())
+  name             String
+  description      String?
+  segment          ProfessionalSegment?
+  isDefault        Boolean              @default(false)
+  marginPercent    Decimal?             @db.Decimal(6, 2)
+  discountPercent  Decimal?             @db.Decimal(6, 2)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  packages         Package[]
+  serviceOptions   ServiceOption[]
+  customers        Customer[]
+  businessAccounts BusinessAccount[]
 }
 
 model Package {
@@ -484,4 +574,231 @@ model ServiceOption {
   sortOrder        Int
 
   @@unique([pricingProfileId, code])
+}
+
+// ---------------------------------------------------------------------------
+// Comptes : particuliers, entreprises (multi-utilisateurs), convoyeurs
+// ---------------------------------------------------------------------------
+
+model PersonalCustomer {
+  id               String    @id @default(uuid())
+  /// Compte de connexion (null = client saisi par Naera, sans espace en ligne).
+  userId           String?   @unique
+  user             User?     @relation(fields: [userId], references: [id])
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  address          String?
+  /// Client historique dont ce compte est issu (migration du modèle Customer).
+  legacyCustomerId String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  missions         Mission[]
+  invoices         Invoice[]
+
+  @@index([lastName])
+}
+
+/// Espace entreprise (locataire). Toutes les données professionnelles y sont rattachées.
+model BusinessAccount {
+  id               String               @id @default(uuid())
+  name             String
+  legalName        String?
+  siret            String?
+  segment          ProfessionalSegment?
+  billingEmail     String?
+  address          String?
+  city             String?
+  /// Profil tarifaire B2B (grille dédiée), à défaut la grille standard.
+  pricingProfileId String?
+  pricingProfile   PricingProfile?      @relation(fields: [pricingProfileId], references: [id])
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  members          BusinessMember[]
+  agencies         BusinessAgency[]
+  costCenters      CostCenter[]
+  missions         Mission[]
+  invoices         Invoice[]
+  subscription     Subscription?
+  featureOverrides FeatureOverride[]
+
+  @@index([name])
+}
+
+model BusinessMember {
+  id                String          @id @default(uuid())
+  businessAccountId String
+  businessAccount   BusinessAccount @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              BusinessRole
+  status            MemberStatus    @default(ACTIVE)
+  agencyId          String?
+  agency            BusinessAgency? @relation(fields: [agencyId], references: [id])
+  invitedAt         DateTime        @default(now())
+  joinedAt          DateTime?
+
+  @@unique([businessAccountId, userId])
+  @@index([userId])
+}
+
+/// Agence d'une entreprise (fonctionnalité multi_agency).
+model BusinessAgency {
+  id                String           @id @default(uuid())
+  businessAccountId String
+  businessAccount   BusinessAccount  @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  name              String
+  address           String?
+  members           BusinessMember[]
+  missions          Mission[]
+
+  @@index([businessAccountId])
+}
+
+/// Centre de coûts (fonctionnalité cost_centers).
+model CostCenter {
+  id                String          @id @default(uuid())
+  businessAccountId String
+  businessAccount   BusinessAccount @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  code              String
+  name              String
+  missions          Mission[]
+
+  @@unique([businessAccountId, code])
+}
+
+model DriverProfile {
+  id          String              @id @default(uuid())
+  userId      String              @unique
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName   String
+  lastName    String
+  phone       String?
+  homeCity    String?
+  status      DriverStatus        @default(ACTIVE)
+  /// Rémunération horaire (donnée interne Naera, jamais exposée aux clients).
+  hourlyRate  Decimal?            @db.Decimal(10, 2)
+  createdAt   DateTime            @default(now())
+  assignments MissionAssignment[]
+}
+
+/// Affectation d'un convoyeur : c'est elle qui ouvre l'accès du convoyeur à la mission.
+model MissionAssignment {
+  id               String           @id @default(uuid())
+  missionId        String
+  mission          Mission          @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  driverProfileId  String
+  driverProfile    DriverProfile    @relation(fields: [driverProfileId], references: [id], onDelete: Cascade)
+  status           AssignmentStatus @default(PROPOSED)
+  assignedAt       DateTime         @default(now())
+  respondedAt      DateTime?
+  assignedByUserId String?
+
+  @@unique([missionId, driverProfileId])
+  @@index([driverProfileId, status])
+}
+
+/// Option payante ajoutée à une mission (instantané du catalogue ServiceOption).
+/// Indépendante de tout abonnement professionnel.
+model MissionOption {
+  id        String  @id @default(uuid())
+  missionId String
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  code      String
+  label     String
+  kind      String
+  amountHT  Decimal @db.Decimal(10, 2)
+
+  @@index([missionId])
+}
+
+model Invoice {
+  id                 String            @id @default(uuid())
+  number             String            @unique
+  missionId          String?
+  mission            Mission?          @relation(fields: [missionId], references: [id])
+  businessAccountId  String?
+  businessAccount    BusinessAccount?  @relation(fields: [businessAccountId], references: [id])
+  personalCustomerId String?
+  personalCustomer   PersonalCustomer? @relation(fields: [personalCustomerId], references: [id])
+  status             InvoiceStatus     @default(DRAFT)
+  issuedAt           DateTime          @default(now())
+  dueAt              DateTime?
+  paidAt             DateTime?
+  amountHT           Decimal           @db.Decimal(10, 2)
+  vatAmount          Decimal           @db.Decimal(10, 2)
+  amountTTC          Decimal           @db.Decimal(10, 2)
+  lines              Json?
+  pdfUrl             String?
+  createdAt          DateTime          @default(now())
+
+  @@index([businessAccountId, issuedAt])
+  @@index([personalCustomerId])
+}
+
+// ---------------------------------------------------------------------------
+// Abonnements professionnels (sans paiement pour l'instant)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id             String         @id @default(uuid())
+  /// PRO_ESSENTIAL, PRO_PLUS, PRO_ANALYTICS, ENTERPRISE…
+  code           String         @unique
+  name           String
+  description    String?
+  sortOrder      Int            @default(0)
+  isActive       Boolean        @default(true)
+  /// Prix mensuel HT — non défini pour l'instant (null).
+  monthlyPriceHT Decimal?       @db.Decimal(10, 2)
+  features       PlanFeature[]
+  subscriptions  Subscription[]
+}
+
+model Feature {
+  id          String            @id @default(uuid())
+  /// analytics_basic, csv_export, team_management…
+  key         String            @unique
+  name        String
+  description String?
+  plans       PlanFeature[]
+  overrides   FeatureOverride[]
+}
+
+model PlanFeature {
+  planId    String
+  plan      Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  featureId String
+  feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  /// Limites éventuelles (nombre d'utilisateurs…).
+  limits    Json?
+
+  @@id([planId, featureId])
+}
+
+model Subscription {
+  id                String             @id @default(uuid())
+  businessAccountId String             @unique
+  businessAccount   BusinessAccount    @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  planId            String
+  plan              Plan               @relation(fields: [planId], references: [id])
+  status            SubscriptionStatus @default(TRIALING)
+  startedAt         DateTime           @default(now())
+  currentPeriodEnd  DateTime?
+  canceledAt        DateTime?
+  /// Identifiant chez le prestataire de paiement (Stripe, plus tard).
+  externalId        String?            @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+/// Dérogation propre à un compte (activer ou retirer une fonctionnalité hors plan).
+model FeatureOverride {
+  businessAccountId String
+  businessAccount   BusinessAccount @relation(fields: [businessAccountId], references: [id], onDelete: Cascade)
+  featureId         String
+  feature           Feature         @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  enabled           Boolean
+
+  @@id([businessAccountId, featureId])
 }

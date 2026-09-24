@@ -3,7 +3,14 @@ import { formatEuro, formatPercent } from "@/core/shared/format";
 import { cn } from "@/utils/cn";
 
 /** Détail de la prestation tel que le voit le client : lignes, HT, TVA, TTC. */
-export function QuoteSummary({ pricing, className }: { pricing: MissionPricing; className?: string }) {
+export function QuoteSummary({
+  pricing,
+  className,
+}: {
+  /** Uniquement les lignes et totaux client (une vue client suffit). */
+  pricing: Pick<MissionPricing, "lines" | "totals">;
+  className?: string;
+}) {
   const { lines, totals } = pricing;
   return (
     <div className={cn("rounded-3xl border border-border bg-surface px-5 shadow-card", className)}>

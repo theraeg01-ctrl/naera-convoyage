@@ -1,16 +1,64 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Mission } from "@/core/mission/types";
+import type { Invoice } from "@/core/accounts/types";
+import { DEFAULT_OWNERSHIP, type Mission } from "@/core/mission/types";
 import type { AppSettings } from "@/core/settings/types";
+import type { DirectorySeed } from "../types";
 
 export interface LocalStoreData {
-  version: 1;
+  version: 2;
   missions: Mission[];
   settings: AppSettings | null;
-  demoSeeded: boolean;
+  /** Version du jeu de démonstration injecté (0 = jamais). */
+  demoVersion: number;
+  directory: DirectorySeed;
+  invoices: Invoice[];
 }
 
-const EMPTY_STORE: LocalStoreData = { version: 1, missions: [], settings: null, demoSeeded: false };
+export const EMPTY_DIRECTORY: DirectorySeed = {
+  users: [],
+  personalCustomers: [],
+  businessAccounts: [],
+  members: [],
+  drivers: [],
+  plans: [],
+  subscriptions: [],
+  overrides: [],
+};
+
+const EMPTY_STORE: LocalStoreData = {
+  version: 2,
+  missions: [],
+  settings: null,
+  demoVersion: 0,
+  directory: EMPTY_DIRECTORY,
+  invoices: [],
+};
+
+/** Complète une mission enregistrée par une version antérieure (sans rattachement ni affectation). */
+function normalizeMission(mission: Mission): Mission {
+  return {
+    ...mission,
+    ownership: mission.ownership ?? { ...DEFAULT_OWNERSHIP },
+    assignment: mission.assignment ?? null,
+    contacts: mission.contacts ?? { pickup: null, dropoff: null },
+  };
+}
+
+/** Lit un fichier v1 (phase 0) ou v2 et le ramène au format courant. */
+function upgrade(raw: Record<string, unknown>): LocalStoreData {
+  const missions = ((raw.missions as Mission[] | undefined) ?? []).map(normalizeMission);
+  if (raw.version === 2) {
+    const data = raw as unknown as LocalStoreData;
+    return { ...EMPTY_STORE, ...data, missions, directory: { ...EMPTY_DIRECTORY, ...data.directory } };
+  }
+  return {
+    ...EMPTY_STORE,
+    missions,
+    settings: (raw.settings as AppSettings | null | undefined) ?? null,
+    demoVersion: raw.demoSeeded ? 1 : 0,
+  };
+}
 
 /**
  * Stockage JSON local pour la démonstration sans base de données.
@@ -28,8 +76,7 @@ export class LocalFileStore {
   private async readRaw(): Promise<LocalStoreData> {
     try {
       const content = await readFile(this.filePath, "utf8");
-      const parsed = JSON.parse(content) as Partial<LocalStoreData>;
-      return { ...EMPTY_STORE, ...parsed, missions: parsed.missions ?? [] };
+      return upgrade(JSON.parse(content) as Record<string, unknown>);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return structuredClone(EMPTY_STORE);
       throw error;

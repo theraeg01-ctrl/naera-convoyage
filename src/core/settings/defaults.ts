@@ -86,6 +86,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
       internalCost: 0,
     },
     {
+      id: "REINFORCED_CHECK",
+      label: "Contrôle renforcé",
+      pricing: { type: "FIXED", amount: 35 },
+      internalCost: 0,
+    },
+    {
       id: "KEY_HANDOVER",
       label: "Remise des clés",
       pricing: { type: "FIXED", amount: 15 },
@@ -95,6 +101,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
       id: "PRIORITY",
       label: "Livraison prioritaire",
       pricing: { type: "FIXED", amount: 25 },
+      internalCost: 0,
+    },
+    {
+      id: "GUARANTEED_SLOT",
+      label: "Créneau garanti",
+      pricing: { type: "FIXED", amount: 30 },
       internalCost: 0,
     },
     {

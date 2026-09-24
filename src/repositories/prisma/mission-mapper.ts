@@ -7,11 +7,20 @@ import type { NewMission } from "../types";
 
 type NewMissionLike = NewMission;
 
+/** Affectations actives (la plus récente fait foi). */
+export const ACTIVE_ASSIGNMENT_STATUSES = ["PROPOSED", "ACCEPTED"] as const;
+
 export const MISSION_INCLUDE = {
   customer: true,
   vehicle: true,
   transportOptions: { orderBy: { rank: "asc" } },
   events: { orderBy: { at: "asc" } },
+  assignments: {
+    where: { status: { in: [...ACTIVE_ASSIGNMENT_STATUSES] } },
+    orderBy: { assignedAt: "desc" },
+    take: 1,
+    include: { driverProfile: true },
+  },
 } as const satisfies Prisma.MissionInclude;
 
 export type MissionRow = Prisma.MissionGetPayload<{ include: typeof MISSION_INCLUDE }>;
@@ -64,6 +73,16 @@ function toVehicle(row: MissionRow["vehicle"], request: MissionRequest): Vehicle
   };
 }
 
+function toAssignment(row: MissionRow["assignments"][number] | undefined): Mission["assignment"] {
+  if (!row) return null;
+  return {
+    driverProfileId: row.driverProfileId,
+    driverName: `${row.driverProfile.firstName} ${row.driverProfile.lastName}`.trim(),
+    status: row.status,
+    assignedAt: row.assignedAt.toISOString(),
+  };
+}
+
 export function toDomainMission(row: MissionRow): Mission {
   const request = row.request as unknown as MissionRequest;
   const options = row.transportOptions.map(toTransportOption);
@@ -97,6 +116,22 @@ export function toDomainMission(row: MissionRow): Mission {
       point: row.dropoffLat !== null && row.dropoffLng !== null ? { lat: row.dropoffLat, lng: row.dropoffLng } : null,
     },
     customer: toCustomer(row.customer),
+    ownership: {
+      channel: row.channel,
+      businessAccountId: row.businessAccountId,
+      personalCustomerId: row.personalCustomerId,
+      createdByUserId: row.createdByUserId,
+      customerReference: row.customerReference,
+    },
+    assignment: toAssignment(row.assignments[0]),
+    contacts: {
+      pickup: row.pickupContactName
+        ? { name: row.pickupContactName, phone: orUndefined(row.pickupContactPhone) }
+        : null,
+      dropoff: row.dropoffContactName
+        ? { name: row.dropoffContactName, phone: orUndefined(row.dropoffContactPhone) }
+        : null,
+    },
     vehicle: toVehicle(row.vehicle, request),
     request,
     strategy: row.strategy,
@@ -203,6 +238,33 @@ export function toMissionCreateInput(
     deliveredAt: date(mission.progress.deliveredAt),
     completedAt: date(mission.progress.completedAt),
     notes: mission.notes,
+    channel: mission.ownership.channel,
+    businessAccount: mission.ownership.businessAccountId
+      ? { connect: { id: mission.ownership.businessAccountId } }
+      : undefined,
+    personalCustomer: mission.ownership.personalCustomerId
+      ? { connect: { id: mission.ownership.personalCustomerId } }
+      : undefined,
+    createdBy: mission.ownership.createdByUserId ? { connect: { id: mission.ownership.createdByUserId } } : undefined,
+    customerReference: mission.ownership.customerReference,
+    pickupContactName: mission.contacts.pickup?.name ?? null,
+    pickupContactPhone: mission.contacts.pickup?.phone ?? null,
+    dropoffContactName: mission.contacts.dropoff?.name ?? null,
+    dropoffContactPhone: mission.contacts.dropoff?.phone ?? null,
+    options: {
+      create: pricing.lines
+        .filter((line) => line.kind !== "SERVICE")
+        .map((line) => ({ code: line.id, label: line.label, kind: line.kind, amountHT: line.amount })),
+    },
+    assignments: mission.assignment
+      ? {
+          create: {
+            driverProfileId: mission.assignment.driverProfileId,
+            status: mission.assignment.status,
+            assignedAt: new Date(mission.assignment.assignedAt),
+          },
+        }
+      : undefined,
     customer: customer
       ? {
           create: {

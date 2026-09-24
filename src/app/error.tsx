@@ -1,27 +1,12 @@
 "use client";
 
-import { RotateCcw, TriangleAlert } from "lucide-react";
-import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorView } from "@/components/layout/error-view";
+import { PageContainer } from "@/components/layout/page-container";
 
-/** Jamais d'erreur technique à l'écran : message clair + nouvelle tentative. */
-export default function ErrorPage({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
+export default function ErrorPage(props: { error: Error & { digest?: string }; retry: () => void }) {
   return (
-    <EmptyState
-      className="mt-10"
-      icon={<TriangleAlert />}
-      title="Un imprévu est survenu"
-      description="Les données n'ont pas pu être chargées. Réessaie dans un instant."
-      action={
-        <Button onClick={() => retry()}>
-          <RotateCcw aria-hidden />
-          Réessayer
-        </Button>
-      }
-    />
+    <PageContainer>
+      <ErrorView {...props} />
+    </PageContainer>
   );
 }

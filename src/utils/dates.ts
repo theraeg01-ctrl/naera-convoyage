@@ -45,3 +45,27 @@ export function formatClock(time: string): string {
 export function formatEventTime(iso: string): string {
   return timeFormatter.format(new Date(iso));
 }
+
+const shortDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Europe/Paris",
+});
+const monthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "short", timeZone: "UTC" });
+const longMonthFormatter = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** « 24 sept. 2026 » (instant ISO). */
+export function formatShortDate(iso: string): string {
+  return shortDateFormatter.format(new Date(iso));
+}
+
+/** « sept. » pour « 2026-09 ». */
+export function formatMonthShort(month: string): string {
+  return monthFormatter.format(new Date(`${month}-01T00:00:00Z`)).replace(".", "");
+}
+
+/** « septembre 2026 » pour « 2026-09 ». */
+export function formatMonthLong(month: string): string {
+  return longMonthFormatter.format(new Date(`${month}-01T00:00:00Z`));
+}

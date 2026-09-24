@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { appSettingsSchema } from "@/core/settings/schema";
 import type { AppSettings } from "@/core/settings/types";
+import { can } from "@/core/access/permissions";
 import { buildSettingsSections } from "@/features/settings/sections";
+import { getActor } from "@/services/auth/session";
 import { logTechnicalError } from "@/services/logger";
 import { getSettings, saveSettings } from "@/services/settings/settings-service";
 import { setPath } from "@/utils/object-path";
@@ -28,6 +30,10 @@ export async function saveSettingsSectionAction(
   formData: FormData,
 ): Promise<SettingsFormState> {
   try {
+    const actor = await getActor();
+    if (actor?.kind !== "STAFF" || !can(actor, "settings.manage")) {
+      return { status: "error", message: "Seul un administrateur Naera peut modifier les paramètres." };
+    }
     const current = await getSettings();
     const section = buildSettingsSections(current).find((candidate) => candidate.id === formData.get("sectionId"));
     if (!section) return { status: "error", message: "Section inconnue." };
@@ -52,8 +58,8 @@ export async function saveSettingsSectionAction(
       return { status: "error", message: "Une valeur est hors limites (négative ou trop élevée). Vérifie la saisie." };
     }
     await saveSettings(next);
-    revalidatePath("/settings");
-    revalidatePath("/missions/new");
+    revalidatePath("/admin/settings");
+    revalidatePath("/admin/missions/new");
     return { status: "saved", message: "Paramètres enregistrés", savedAt: Date.now() };
   } catch (error) {
     logTechnicalError("saveSettingsSectionAction", error);

@@ -85,6 +85,10 @@ const ACTIONS: Record<MissionActionId, MissionAction> = {
   CANCEL: { id: "CANCEL", label: "Annuler la mission", hint: "La mission n'aura pas lieu" },
 };
 
+export function missionActionDetails(id: MissionActionId): MissionAction {
+  return ACTIONS[id];
+}
+
 /** Action principale proposée au convoyeur selon l'état de la mission. */
 export function nextMissionAction(mission: Pick<Mission, "status" | "progress">): MissionAction | null {
   switch (mission.status) {

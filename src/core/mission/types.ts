@@ -1,3 +1,4 @@
+import type { AssignmentStatus, MissionChannel } from "../accounts/types";
 import type { MissionPricing } from "../pricing/mission-pricing";
 import type { Place, RouteOption } from "../routing/types";
 import type { FuelType, OptimizationStrategy, VehicleCategory } from "../settings/types";
@@ -88,6 +89,41 @@ export interface MissionProgress {
   completedAt?: string;
 }
 
+export interface ContactPerson {
+  name: string;
+  phone?: string;
+}
+
+/**
+ * Rattachement de la mission : c'est la clé d'isolation des données.
+ * Une mission professionnelle appartient à un BusinessAccount ; une mission
+ * de particulier à un PersonalCustomer ; une mission sans compte n'est
+ * visible que par Naera.
+ */
+export interface MissionOwnership {
+  channel: MissionChannel;
+  businessAccountId: string | null;
+  personalCustomerId: string | null;
+  createdByUserId: string | null;
+  /** Référence interne du client professionnel (bon de commande…). */
+  customerReference: string | null;
+}
+
+export interface MissionAssignment {
+  driverProfileId: string;
+  driverName: string;
+  status: AssignmentStatus;
+  assignedAt: string;
+}
+
+export const DEFAULT_OWNERSHIP: MissionOwnership = {
+  channel: "BACKOFFICE",
+  businessAccountId: null,
+  personalCustomerId: null,
+  createdByUserId: null,
+  customerReference: null,
+};
+
 export interface Mission {
   id: string;
   reference: string;
@@ -99,7 +135,12 @@ export interface Mission {
   scheduledTime: string;
   pickup: Place;
   dropoff: Place;
+  /** Contact figé au moment de la commande (nom, téléphone…). */
   customer: CustomerInfo | null;
+  ownership: MissionOwnership;
+  assignment: MissionAssignment | null;
+  /** Contacts sur place, transmis au convoyeur. */
+  contacts: { pickup: ContactPerson | null; dropoff: ContactPerson | null };
   vehicle: VehicleInfo;
   request: MissionRequest;
   strategy: OptimizationStrategy;

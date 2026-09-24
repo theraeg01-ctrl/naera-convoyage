@@ -3,28 +3,34 @@
 import { Ban, Check, Ellipsis, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { missionStepAction } from "@/actions/missions";
-import { ACTION_DONE_LABELS, canCancel, nextMissionAction, type MissionActionId } from "@/core/mission/progress";
-import type { MissionProgress, MissionStatus } from "@/core/mission/types";
+import { ACTION_DONE_LABELS, missionActionDetails, type MissionActionId } from "@/core/mission/progress";
 import { ActionBar } from "@/components/ui/action-bar";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { Button } from "@/components/ui/button";
 
+type ActionOutcome = { ok: true } | { ok: false; message: string };
+
 interface MissionActionBarProps {
   missionId: string;
-  status: MissionStatus;
-  progress: MissionProgress;
+  /** Actions autorisées pour l'acteur, calculées par le serveur. */
+  actions: MissionActionId[];
+  /** Server Action du portail (elle revérifie droits et périmètre). */
+  perform: (id: string, action: string) => Promise<ActionOutcome>;
+  labels?: Partial<Record<MissionActionId, string>>;
 }
 
 /** Action principale selon l'état (Démarrer, Confirmer l'inspection…), au pouce. */
-export function MissionActionBar({ missionId, status, progress }: MissionActionBarProps) {
+export function MissionActionBar({ missionId, actions, perform, labels }: MissionActionBarProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [running, setRunning] = useState<MissionActionId | null>(null);
   const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const action = nextMissionAction({ status, progress });
-  const cancellable = canCancel(status);
+  const primaryId = actions.find((id) => id !== "CANCEL");
+  const action = primaryId
+    ? { ...missionActionDetails(primaryId), label: labels?.[primaryId] ?? missionActionDetails(primaryId).label }
+    : null;
+  const cancellable = actions.includes("CANCEL");
 
   if (!action && !cancellable) return null;
 
@@ -33,7 +39,7 @@ export function MissionActionBar({ missionId, status, progress }: MissionActionB
     setFeedback(null);
     startTransition(async () => {
       try {
-        const result = await missionStepAction(missionId, id);
+        const result = await perform(missionId, id);
         setFeedback(
           result.ok ? { tone: "success", message: ACTION_DONE_LABELS[id] } : { tone: "error", message: result.message },
         );
