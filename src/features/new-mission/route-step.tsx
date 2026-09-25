@@ -43,7 +43,7 @@ export function RouteStep({ form, config, onSubmit, submitting, advancedOpen }: 
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-      <div className="relative rounded-3xl border border-border bg-surface p-4 shadow-card sm:p-5">
+      <div className="relative rounded-2xl border border-border bg-surface p-4 shadow-card sm:p-5">
         <div className="space-y-4">
           <Controller
             control={control}

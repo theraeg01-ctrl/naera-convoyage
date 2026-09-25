@@ -5,7 +5,7 @@ import { can, permissionsOf } from "../access/permissions";
 import { findInternalFields } from "@/test/internal-fields";
 import { toCustomerMissionView, toDriverMissionView } from "../access/projections";
 import { isInScope, missionScopeFor } from "../access/scope";
-import { computeBusinessDashboard } from "../analytics/business-analytics";
+import { getBusinessMonthlyMetrics } from "../analytics/business-analytics";
 import { customerTracking } from "../mission/tracking";
 import { DEFAULT_OWNERSHIP, type Mission } from "../mission/types";
 import { activeNavItem, buildNavigation } from "../navigation/portal-navigation";
@@ -277,6 +277,7 @@ describe("Navigation par portail", () => {
       "billing",
       "analytics",
       "team",
+      "account",
     ]);
   });
 
@@ -286,16 +287,23 @@ describe("Navigation par portail", () => {
       "missions",
       "new",
       "billing",
+      "account",
     ]);
   });
 
   it("…et du rôle", () => {
-    expect(ids(buildNavigation("pro", business("OPERATOR"), plus))).toEqual(["dashboard", "missions", "new"]);
+    expect(ids(buildNavigation("pro", business("OPERATOR"), plus))).toEqual([
+      "dashboard",
+      "missions",
+      "new",
+      "account",
+    ]);
     expect(ids(buildNavigation("pro", business("BILLING"), plus))).toEqual([
       "dashboard",
       "missions",
       "billing",
       "analytics",
+      "account",
     ]);
   });
 
@@ -315,7 +323,7 @@ describe("Navigation par portail", () => {
 });
 
 describe("Dashboard professionnel et suivi client", () => {
-  it("compte les missions sans aucune donnée de marge", () => {
+  it("indicateurs pro sans aucune donnée de marge", () => {
     const view = (status: Mission["status"], scheduledDate: string) =>
       toCustomerMissionView(buildMission({ status, scheduledDate }));
     const missions = [
@@ -326,20 +334,51 @@ describe("Dashboard professionnel et suivi client", () => {
       view("CANCELLED", "2026-09-24"),
       view("COMPLETED", "2026-08-28"),
     ];
-    const dashboard = computeBusinessDashboard(missions, "2026-09-24");
-    expect(dashboard).toMatchObject({
-      missionsToday: 1,
-      inProgress: 1,
-      completedThisMonth: 2,
-      toConfirm: 1,
-      missionsThisMonth: 4,
-      convoyedKmThisMonth: 440,
-    });
-    expect(dashboard.spendThisMonthHT).toBe(missions[0].totals.ht * 3);
+    const metrics = getBusinessMonthlyMetrics(missions, "2026-09-24");
+    expect(metrics).toMatchObject({ today: 1, inProgress: 1, toConfirm: 1 });
+    expect(metrics.requested.missionCount).toBe(4);
+    expect(metrics.confirmed.missionCount).toBe(3);
+    expect(metrics.delivered.missionCount).toBe(2);
+    expect(metrics.delivered.distanceKm).toBe(440);
+    expect(metrics.confirmed.spendHT).toBe(missions[0].totals.ht * 3);
+    expect(findInternalFields(metrics)).toEqual([]);
   });
 
-  it("suivi client en 5 étapes", () => {
+  it("suivi client en 6 étapes", () => {
     const stages = customerTracking({ status: "IN_PROGRESS", progress: { inspectedAt: "x" }, createdAt: "y" });
-    expect(stages.map((stage) => stage.state)).toEqual(["done", "done", "done", "current", "upcoming"]);
+    expect(stages.map((stage) => stage.state)).toEqual(["done", "done", "done", "current", "upcoming", "upcoming"]);
+  });
+
+  it("véhicule livré ≠ mission terminée", () => {
+    const delivered = customerTracking({
+      status: "DELIVERED",
+      progress: { inspectedAt: "a", drivingAt: "b", deliveredAt: "c" },
+      createdAt: "y",
+    });
+    expect(delivered.find((stage) => stage.id === "DELIVERED")?.state).toBe("done");
+    expect(delivered.find((stage) => stage.id === "COMPLETED")).toMatchObject({
+      state: "current",
+      label: "Mission terminée",
+    });
+    const completed = customerTracking({
+      status: "COMPLETED",
+      progress: { inspectedAt: "a", drivingAt: "b", deliveredAt: "c", completedAt: "d" },
+      createdAt: "y",
+    });
+    expect(completed.every((stage) => stage.state === "done")).toBe(true);
+  });
+
+  it("le convoyeur confirme la livraison, seul Naera clôture la mission", () => {
+    const deliveredMission = buildMission({
+      status: "DELIVERED",
+      progress: { startedAt: "a", inspectedAt: "b", drivingAt: "c", deliveredAt: "d" },
+    });
+    expect(allowedMissionActions(driver, deliveredMission)).toEqual([]);
+    expect(allowedMissionActions(staff, deliveredMission)).toContain("COMPLETE");
+    const driving = buildMission({
+      status: "IN_PROGRESS",
+      progress: { startedAt: "a", inspectedAt: "b", drivingAt: "c" },
+    });
+    expect(allowedMissionActions(driver, driving)).toEqual(["CONFIRM_DELIVERY"]);
   });
 });

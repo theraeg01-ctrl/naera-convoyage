@@ -5,7 +5,7 @@ import { cn } from "@/utils/cn";
 
 export const buttonVariants = cva(
   [
-    "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-2xl font-semibold",
+    "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold",
     "transition-[background-color,color,box-shadow,transform,opacity] duration-150 active:scale-[0.98]",
     "disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0",
   ],

@@ -1,5 +1,5 @@
 import type { CustomerSnapshot, Mission, MissionEvent, VehicleInfo } from "@/core/mission/types";
-import type { MissionPricing } from "@/core/pricing/mission-pricing";
+import { normalizeStoredPricing, type MissionPricing } from "@/core/pricing/mission-pricing";
 import type { DataMode, MissionRequest } from "@/core/simulation/types";
 import type { TransportOption } from "@/core/transport/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -151,7 +151,7 @@ export function toDomainMission(row: MissionRow): Mission {
     accessLeg: selected("ACCESS"),
     returnLeg: selected("RETURN"),
     returnAlternatives: options.filter((option) => option.direction === "RETURN"),
-    pricing: row.pricing as unknown as MissionPricing,
+    pricing: normalizeStoredPricing(row.pricing as unknown as MissionPricing),
     dataMode: row.dataMode as DataMode,
     progress: {
       startedAt: toIso(row.startedAt),
@@ -233,7 +233,7 @@ export function toMissionCreateInput(
     vatAmount: pricing.totals.vat,
     priceTTC: pricing.totals.ttc,
     costTotal: pricing.costs.total,
-    marginAmount: pricing.margin.amount,
+    marginAmount: pricing.margin.grossMargin,
     request: mission.request as unknown as Prisma.InputJsonValue,
     pricing: pricing as unknown as Prisma.InputJsonValue,
     startedAt: date(mission.progress.startedAt),

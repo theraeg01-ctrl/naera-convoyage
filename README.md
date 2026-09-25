@@ -277,10 +277,22 @@ entreprises, refus par rôle et par plan, rattachement des commandes imposé par
 
 - **Temps mission** = trajet vers le véhicule + formalités départ (15 min) + inspection (15 min) + conduite (durée avec
   trafic) + formalités livraison (15 min) + attente + retour convoyeur.
-- **Coût réel** = temps × coût horaire (18 €/h) + transport aller + carburant (distance × conso / 100 × prix) + péages
-  - transport retour + frais fixes (15 €) + frais variables (0,05 €/km) + options + autres coûts.
-- **Marge** : pourcentage appliqué au coût (taux de marge = marge / coût, 30 % par défaut) ou montant fixe.
-  **Prix minimum rentable** = coût × (1 + marge minimum, 10 %).
+- **Coût interne** = temps × coût horaire (18 €/h) + transport aller + carburant (distance × conso / 100 × prix) +
+  péages + transport retour + frais fixes (15 €) + frais variables (0,05 €/km) + options + autres coûts.
+- **Marge — définitions uniques** (`src/core/pricing/margin.ts`, utilisées par tous les écrans) :
+
+  | Indicateur                      | Formule                         | Usage                                                                                      |
+  | ------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
+  | Marge brute (€)                 | prix de vente HT − coût interne | Montant gagné par Naera                                                                    |
+  | **Taux de marge sur vente** (%) | marge brute / prix de vente HT  | **Seul** taux utilisé pour la marge cible, la marge minimum, la rentabilité et le pilotage |
+  | Majoration sur coût (%)         | marge brute / coût interne      | Indicateur secondaire, toujours nommé ainsi, jamais « marge »                              |
+
+  Exemple : 259 € HT, coût 198 € → marge brute 61 €, taux de marge sur vente 23,55 %, majoration sur coût 30,81 %.
+
+- **Marge cible** (30 % par défaut) et **marge minimum** (10 %) sont des taux sur prix de vente :
+  **prix cible** = coût interne ÷ (1 − 30 %) et **prix minimum rentable** = coût interne ÷ (1 − 10 %), arrondi à
+  l'euro supérieur. Une marge de 30 % n'est pas une majoration de 30 % : pour 198 € de coût, le prix à 30 % de marge
+  est 282,86 € HT (et non 257,40 €). Une marge brute fixe (€) reste possible.
 - **Contrôle de rentabilité** : le forfait (City, Local+, Regional, France, France+, Long Distance) est comparé au prix
   cible et au prix minimum. Il n'est retenu que s'il couvre la marge cible ; sinon « Tarif package insuffisant pour
   cette mission » ou « Package sous la marge cible », avec le prix recommandé.

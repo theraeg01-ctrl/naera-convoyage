@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Invoice } from "@/core/accounts/types";
 import { DEFAULT_OWNERSHIP, type Mission } from "@/core/mission/types";
+import { normalizeStoredPricing } from "@/core/pricing/mission-pricing";
 import type { AppSettings } from "@/core/settings/types";
 import type { DirectorySeed } from "../types";
 
@@ -51,6 +52,7 @@ function normalizeMission(stored: StoredMission): Mission {
   return {
     ...mission,
     customerSnapshot: mission.customerSnapshot ?? customer ?? null,
+    pricing: normalizeStoredPricing(mission.pricing),
     ownership: mission.ownership ?? { ...DEFAULT_OWNERSHIP },
     assignment: mission.assignment ?? null,
     contacts: mission.contacts ?? { pickup: null, dropoff: null },

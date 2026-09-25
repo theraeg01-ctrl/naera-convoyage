@@ -77,7 +77,7 @@ export default async function HomePage(props: PageProps<"/">) {
       </div>
 
       {actor ? (
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-border bg-surface p-4 shadow-card">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">
           <div className="min-w-0">
             <p className="text-sm text-muted">Connecté en tant que</p>
             <p className="truncate font-semibold">

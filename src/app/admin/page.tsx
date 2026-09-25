@@ -77,18 +77,22 @@ export default async function AdminDashboardPage() {
           <StatTile
             label="Chiffre d'affaires"
             value={formatEuro(Math.round(kpis.revenueHT))}
-            hint="HT, missions confirmées"
+            hint="Prix de vente HT, missions confirmées"
           />
           <StatTile
-            label="Marge moyenne"
-            value={kpis.averageMarginRate === null ? "—" : formatPercent(kpis.averageMarginRate)}
+            label="Taux de marge sur vente"
+            value={kpis.grossMarginRate === null ? "—" : formatPercent(kpis.grossMarginRate, 1)}
+            hint={`Marge brute ${formatEuro(Math.round(kpis.grossMarginHT))}`}
+          />
+          <StatTile
+            label="Missions confirmées"
+            value={kpis.missions}
             hint={
-              kpis.averageMarginAmount === null
+              kpis.averageGrossMargin === null
                 ? undefined
-                : `${formatEuro(Math.round(kpis.averageMarginAmount))} par mission`
+                : `${formatEuro(Math.round(kpis.averageGrossMargin))} de marge brute par mission`
             }
           />
-          <StatTile label="Missions" value={kpis.missionCount} hint="hors annulations" />
           <StatTile label="Kilomètres convoyés" value={formatKm(kpis.convoyedKm)} hint="missions livrées" />
         </div>
       </Section>

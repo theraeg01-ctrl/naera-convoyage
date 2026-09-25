@@ -86,6 +86,7 @@ export const PORTAL_NAVIGATION: Record<Portal, readonly NavItem[]> = {
       permission: "team.read",
       feature: "team_management",
     },
+    { id: "account", label: "Compte", href: "/pro/account", icon: "account" },
   ],
   admin: [
     { id: "dashboard", label: "Dashboard", href: "/admin", icon: "home", tab: true },

@@ -35,7 +35,7 @@ export default async function ClientHomePage() {
         <Section title="Commande en cours">
           <Link
             href={`/client/missions/${current.id}`}
-            className="block rounded-3xl border border-border bg-surface p-5 shadow-card transition-[border-color,transform] hover:border-border-strong active:scale-[0.99]"
+            className="block rounded-2xl border border-border bg-surface p-5 shadow-card transition-[border-color,transform] hover:border-border-strong active:scale-[0.99]"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0">

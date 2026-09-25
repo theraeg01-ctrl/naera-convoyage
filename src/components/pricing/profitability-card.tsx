@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
 import type { MissionPricing } from "@/core/pricing/mission-pricing";
-import { formatEuro } from "@/core/shared/format";
+import { formatEuro, formatPercent } from "@/core/shared/format";
 import { cn } from "@/utils/cn";
 
 const STYLES = {
@@ -9,19 +9,36 @@ const STYLES = {
   INSUFFICIENT: { icon: CircleAlert, tone: "bg-danger-soft text-danger" },
 } as const;
 
-/** Contrôle de rentabilité : package commercial vs coût réel vs prix minimum rentable. */
+/**
+ * Contrôle de rentabilité : package commercial vs coût interne vs prix
+ * minimum rentable. Les taux affichés sont des taux de marge SUR VENTE.
+ */
 export function ProfitabilityCard({ pricing, className }: { pricing: MissionPricing; className?: string }) {
   const { profitability } = pricing;
   const style = STYLES[profitability.status];
   const Icon = style.icon;
+  const targets = pricing.marginTargets;
   const rows = [
-    { label: `Forfait ${pricing.package.name}`, value: formatEuro(pricing.package.price), emphasis: false },
-    { label: "Coût réel", value: formatEuro(Math.round(pricing.costs.total)), emphasis: false },
-    { label: "Prix minimum rentable", value: formatEuro(pricing.minimumPrice), emphasis: false },
-    { label: "Prix recommandé", value: formatEuro(pricing.basePrice), emphasis: true },
+    { label: `Forfait ${pricing.package.name}`, hint: null, value: formatEuro(pricing.package.price), emphasis: false },
+    { label: "Coût interne", hint: null, value: formatEuro(pricing.costs.total, 2), emphasis: false },
+    {
+      label: "Prix minimum rentable",
+      hint: targets ? `Marge ${formatPercent(targets.minimumRatePercent)} sur vente` : null,
+      value: formatEuro(pricing.minimumPrice),
+      emphasis: false,
+    },
+    {
+      label: "Prix recommandé",
+      hint:
+        targets?.targetRatePercent !== null && targets?.targetRatePercent !== undefined
+          ? `Marge cible ${formatPercent(targets.targetRatePercent)} sur vente`
+          : null,
+      value: formatEuro(pricing.basePrice),
+      emphasis: true,
+    },
   ];
   return (
-    <div className={cn("overflow-hidden rounded-3xl border border-border bg-surface shadow-card", className)}>
+    <div className={cn("overflow-hidden rounded-2xl border border-border bg-surface shadow-card", className)}>
       <div className={cn("flex items-start gap-3 px-5 py-4", style.tone)}>
         <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />
         <div>
@@ -33,8 +50,11 @@ export function ProfitabilityCard({ pricing, className }: { pricing: MissionPric
       </div>
       <dl className="divide-y divide-border px-5">
         {rows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between py-3 text-[15px]">
-            <dt className={row.emphasis ? "font-semibold" : "text-muted"}>{row.label}</dt>
+          <div key={row.label} className="flex items-center justify-between gap-3 py-3 text-[15px]">
+            <dt className={row.emphasis ? "font-semibold" : "text-muted"}>
+              {row.label}
+              {row.hint ? <span className="block text-xs font-normal text-faint">{row.hint}</span> : null}
+            </dt>
             <dd className={cn("tabular", row.emphasis ? "font-semibold" : "font-medium")}>{row.value} HT</dd>
           </div>
         ))}

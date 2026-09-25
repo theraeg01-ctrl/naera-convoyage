@@ -28,7 +28,7 @@ export default async function NewMissionPage() {
     consumption: settings.fuel.consumption,
     marginSummary:
       settings.pricing.marginMode === "PERCENT"
-        ? formatPercent(settings.pricing.marginPercent)
+        ? `${formatPercent(settings.pricing.marginPercent)} sur vente`
         : formatEuro(settings.pricing.marginFixedAmount),
     baseCity: settings.company.baseCity,
     options: SELECTABLE_OPTION_IDS.flatMap((id) => {

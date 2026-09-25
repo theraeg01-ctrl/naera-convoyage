@@ -15,15 +15,17 @@ const TONES: Record<InvoiceStatus, "neutral" | "success" | "warning" | "danger">
 };
 
 /** Factures client (montants facturés uniquement). Téléchargement PDF à venir. */
-export function InvoiceList({ invoices }: { invoices: Invoice[] }) {
+export function InvoiceList({
+  invoices,
+  emptyTitle = "Aucune facture",
+  emptyDescription = "Les factures apparaissent ici une fois les missions terminées.",
+}: {
+  invoices: Invoice[];
+  emptyTitle?: string;
+  emptyDescription?: string;
+}) {
   if (invoices.length === 0) {
-    return (
-      <EmptyState
-        icon={<Receipt />}
-        title="Aucune facture"
-        description="Les factures apparaissent ici une fois les missions terminées."
-      />
-    );
+    return <EmptyState icon={<Receipt />} title={emptyTitle} description={emptyDescription} />;
   }
   return (
     <Card className="divide-y divide-border px-5">

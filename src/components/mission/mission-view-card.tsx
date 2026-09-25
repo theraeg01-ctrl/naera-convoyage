@@ -29,7 +29,7 @@ export function MissionViewCard(props: MissionViewCardProps) {
     <Link
       href={props.href}
       className={cn(
-        "group flex min-w-0 items-center gap-3 rounded-3xl border border-border bg-surface p-4 shadow-card transition-[border-color,transform] duration-150 hover:border-border-strong active:scale-[0.99]",
+        "group flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card transition-[border-color,transform] duration-150 hover:border-border-strong active:scale-[0.99]",
         props.className,
       )}
     >

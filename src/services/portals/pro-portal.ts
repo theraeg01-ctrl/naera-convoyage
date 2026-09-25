@@ -7,9 +7,9 @@ import { missionScopeFor } from "@/core/access/scope";
 import type { BusinessRole, BusinessSegment, Invoice, MemberStatus } from "@/core/accounts/types";
 import {
   computeBusinessAnalytics,
-  computeBusinessDashboard,
+  getBusinessMonthlyMetrics,
   type BusinessAnalytics,
-  type BusinessDashboard,
+  type BusinessMonthlyMetrics,
 } from "@/core/analytics/business-analytics";
 import {
   matchesMissionFilter,
@@ -68,7 +68,8 @@ async function accountMissions(actor: BusinessActor): Promise<CustomerMissionVie
 
 /** Dashboard pro : ce qui demande une action, ce qui roule, les dépenses, l'activité. */
 export interface ProDashboardData {
-  kpis: BusinessDashboard;
+  /** Volumes et dépenses du mois (source unique : getBusinessMonthlyMetrics). */
+  metrics: BusinessMonthlyMetrics;
   toConfirm: CustomerMissionView[];
   inProgress: CustomerMissionView[];
   activity: ActivityItem[];
@@ -84,7 +85,7 @@ export async function getProDashboard(actor: Actor | null): Promise<ProDashboard
       "asc",
     );
   return {
-    kpis: computeBusinessDashboard(missions, day),
+    metrics: getBusinessMonthlyMetrics(missions, day),
     toConfirm: pick("TO_CONFIRM"),
     inProgress: pick("IN_PROGRESS"),
     activity: recentActivity(missions, new Date()),
@@ -94,8 +95,6 @@ export async function getProDashboard(actor: Actor | null): Promise<ProDashboard
 export interface ProMissionList {
   missions: CustomerMissionView[];
   counts: Record<MissionFilter, number>;
-  /** Auteurs des missions (membres du compte). */
-  authors: Record<string, string>;
 }
 
 export async function listProMissions(
@@ -103,7 +102,7 @@ export async function listProMissions(
   query: { filter: MissionFilter; search?: string },
 ): Promise<ProMissionList> {
   assertBusiness(actor, "missions.read");
-  const [missions, authors] = await Promise.all([accountMissions(actor), memberNames(actor)]);
+  const missions = await accountMissions(actor);
   const day = today();
   const searched = missions.filter((mission) =>
     matchesSearch(
@@ -127,7 +126,6 @@ export async function listProMissions(
   return {
     missions: sortMissionsBySchedule(searched.filter((m) => matchesMissionFilter(m, query.filter, day))),
     counts,
-    authors,
   };
 }
 
@@ -190,7 +188,7 @@ export async function getProBilling(actor: Actor | null): Promise<ProBilling> {
     invoices: [...invoices].sort((a, b) => b.issuedAt.localeCompare(a.issuedAt)),
     outstandingTTC: sum(invoices.filter((invoice) => invoice.status === "ISSUED" || invoice.status === "OVERDUE")),
     paidThisMonthTTC: sum(invoices.filter((invoice) => invoice.paidAt?.startsWith(month))),
-    spendThisMonthHT: computeBusinessDashboard(missions, today()).spendThisMonthHT,
+    spendThisMonthHT: getBusinessMonthlyMetrics(missions, today()).confirmed.spendHT,
   };
 }
 
@@ -228,6 +226,24 @@ export async function getProTeam(actor: Actor | null): Promise<TeamMemberView[]>
     status: member.status,
     isCurrentUser: member.id === actor.memberId,
   }));
+}
+
+/** Compte de l'utilisateur connecté : son profil de membre et son entreprise. */
+export interface ProAccountPage {
+  account: ProAccountSummary;
+  member: { name: string; email: string; role: BusinessRole };
+}
+
+export async function getProAccount(actor: Actor | null): Promise<ProAccountPage> {
+  const { actor: member, account } = await getProContext(actor);
+  const { directory } = await getAppRepositories();
+  const members = await directory.listMembers(member.businessAccountId);
+  const current = members.find((entry) => entry.member.id === member.memberId);
+  if (!current) throw new AccessDeniedError("FORBIDDEN");
+  return {
+    account,
+    member: { name: current.user.name, email: current.user.email, role: current.member.role },
+  };
 }
 
 /** Présentation d'une offre (sans prix) : lu dans le catalogue des plans enregistré. */

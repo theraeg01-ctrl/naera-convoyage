@@ -73,13 +73,19 @@ afterAll(async () => {
 });
 
 describe("jeu de démonstration", () => {
-  it("Garage Martin : 12 missions ce mois (8 terminées, 3 en cours, 1 à confirmer)", async () => {
+  it("Garage Martin : 12 demandes ce mois (11 confirmées dont 8 livrées et 3 en cours, 1 à confirmer)", async () => {
     const julien = find("Julien Martin");
     const dashboard = await services.pro.getProDashboard(julien);
-    expect(dashboard.kpis.missionsThisMonth).toBe(12);
-    expect(dashboard.kpis.completedThisMonth).toBe(8);
-    expect(dashboard.kpis.inProgress).toBe(3);
-    expect(dashboard.kpis.toConfirm).toBe(1);
+    expect(dashboard.metrics.requested.missionCount).toBe(12);
+    expect(dashboard.metrics.confirmed.missionCount).toBe(11);
+    expect(dashboard.metrics.delivered.missionCount).toBe(8);
+    expect(dashboard.metrics.inProgress).toBe(3);
+    expect(dashboard.metrics.toConfirm).toBe(1);
+    // Même source que les Analytics : mêmes dépenses et mêmes missions.
+    const analytics = await services.pro.getProAnalytics(julien);
+    expect(analytics.basic?.current).toEqual(dashboard.metrics.confirmed);
+    const billing = await services.pro.getProBilling(julien);
+    expect(billing.spendThisMonthHT).toBe(dashboard.metrics.confirmed.spendHT);
   });
 
   it("Sophie Durand a une commande en cours", async () => {

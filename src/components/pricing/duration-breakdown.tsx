@@ -14,7 +14,7 @@ export function DurationBreakdown({ pricing, hourlyRate }: { pricing: MissionPri
     { label: "Retour du convoyeur", value: duration.returnMin },
   ].filter((row) => row.value > 0);
   return (
-    <div className="rounded-3xl border border-border bg-surface px-5 shadow-card">
+    <div className="rounded-2xl border border-border bg-surface px-5 shadow-card">
       <ul className="divide-y divide-border">
         {rows.map((row) => (
           <li key={row.label} className="flex justify-between gap-4 py-3 text-[15px]">

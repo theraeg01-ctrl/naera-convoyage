@@ -18,6 +18,7 @@ import { formatKm, formatMinutes } from "@/core/shared/format";
 import { FUEL_TYPES, VEHICLE_CATEGORIES, type SelectableOptionId } from "@/core/settings/types";
 import type { DataMode } from "@/core/simulation/types";
 import { AddressAutocomplete } from "@/features/new-mission/address-autocomplete";
+import { ContactDisclosure } from "./contact-disclosure";
 import type { CustomerOrderInput, CustomerQuoteView } from "@/services/portals/orders";
 import { formatLongDay } from "@/utils/dates";
 import { cn } from "@/utils/cn";
@@ -223,6 +224,24 @@ export function OrderFlow({ variant, basePath, options, initial, minDate, cancel
     </fieldset>
   );
 
+  const contactDisclosure = (prefix: "pickup" | "dropoff", title: string, addLabel: string) => {
+    const nameKey = prefix === "pickup" ? "pickupContactName" : "dropoffContactName";
+    const phoneKey = prefix === "pickup" ? "pickupContactPhone" : "dropoffContactPhone";
+    return (
+      <ContactDisclosure
+        id={prefix}
+        title={title}
+        addLabel={addLabel}
+        value={{ name: form[nameKey], phone: form[phoneKey] }}
+        onChange={(value) => {
+          setForm((current) => ({ ...current, [nameKey]: value.name, [phoneKey]: value.phone }));
+          setQuote(null);
+        }}
+        errors={{ name: errors[`${prefix}Contact.name`], phone: errors[`${prefix}Contact.phone`] }}
+      />
+    );
+  };
+
   const addressField = (key: "pickupAddress" | "dropoffAddress", label: string) => (
     <Field label={label} htmlFor={key} error={errors[key]}>
       <AddressAutocomplete
@@ -332,8 +351,10 @@ export function OrderFlow({ variant, basePath, options, initial, minDate, cancel
       <div className="space-y-6">
         {addressField("pickupAddress", "Départ")}
         {addressField("dropoffAddress", "Destination")}
-        {contactFields("pickup", "Contact au départ (facultatif)")}
-        {contactFields("dropoff", "Contact à l'arrivée (facultatif)")}
+        <div className="space-y-2 border-t border-border pt-4">
+          {contactDisclosure("pickup", "Contact au départ", "Ajouter un contact au départ")}
+          {contactDisclosure("dropoff", "Contact à l'arrivée", "Ajouter un contact à l'arrivée")}
+        </div>
       </div>
     ),
     vehicle: vehicleFields,

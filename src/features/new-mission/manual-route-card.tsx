@@ -49,7 +49,7 @@ export function ManualRouteCard({
     <form
       onSubmit={submit}
       noValidate
-      className="animate-rise space-y-5 rounded-3xl border border-border bg-surface p-5 shadow-card"
+      className="animate-rise space-y-5 rounded-2xl border border-border bg-surface p-5 shadow-card"
     >
       <div className="flex gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-warning-soft text-warning">

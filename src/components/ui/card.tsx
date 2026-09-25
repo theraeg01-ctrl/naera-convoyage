@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("rounded-3xl border border-border bg-surface shadow-card", className)} {...props} />;
+  return <div className={cn("rounded-2xl border border-border bg-surface shadow-card", className)} {...props} />;
 }
 
 interface SectionProps extends Omit<ComponentProps<"section">, "title"> {

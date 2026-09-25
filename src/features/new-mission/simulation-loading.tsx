@@ -17,7 +17,7 @@ export function SimulationLoading() {
 
   return (
     <div className="space-y-6" aria-busy="true">
-      <ol className="space-y-2.5 rounded-3xl border border-border bg-surface p-5 shadow-card" aria-live="polite">
+      <ol className="space-y-2.5 rounded-2xl border border-border bg-surface p-5 shadow-card" aria-live="polite">
         {STAGES.map((label, index) => (
           <li key={label} className={cn("flex items-center gap-3 text-[15px]", index > stage && "text-faint")}>
             {index < stage ? (
@@ -37,7 +37,7 @@ export function SimulationLoading() {
         <Skeleton className="h-6 w-56" />
       </div>
       <Skeleton className="h-52 w-full rounded-[28px]" />
-      <Skeleton className="h-40 w-full rounded-3xl" />
+      <Skeleton className="h-40 w-full rounded-2xl" />
     </div>
   );
 }

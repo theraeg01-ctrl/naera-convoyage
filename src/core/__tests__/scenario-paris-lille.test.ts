@@ -6,7 +6,8 @@ import { parisLilleSimulation, testSettings } from "./fixtures";
 
 /**
  * Scénario principal : Paris → Lille, 220 km, 2 h 30, 18 € de péages,
- * carburant ≈ 30 €, train retour 32 € / 1 h 15, 18 €/h, marge cible 30 %.
+ * carburant ≈ 30 €, train retour 32 € / 1 h 15, 18 €/h, marge cible 30 % du prix
+ * de vente, marge minimum 10 % du prix de vente.
  */
 const settings = testSettings((draft) => {
   draft.fuel.petrolPrice = 2.1; // 14,3 L × 2,10 € ≈ 30 €
@@ -43,18 +44,22 @@ describe("Scénario Paris → Lille", () => {
     expect(pricing.costs.total).toBe(203.33);
   });
 
-  it("compare package, coût réel et prix minimum", () => {
+  it("compare package, coût interne et prix minimum (taux sur prix de vente)", () => {
     expect(pricing.package).toMatchObject({ id: "REGIONAL", price: 249 });
-    expect(pricing.targetPrice).toBe(264.33);
-    expect(pricing.minimumPrice).toBe(224);
+    expect(pricing.targetPrice).toBe(290.47); // 203,33 / 0,70
+    expect(pricing.minimumPrice).toBe(226); // 203,33 / 0,90 = 225,92 → 226
+    expect(pricing.marginTargets).toEqual({ targetRatePercent: 30, minimumRatePercent: 10 });
     expect(pricing.profitability.status).toBe("BELOW_TARGET");
   });
 
-  it("propose un prix conseillé arrondi, avec TVA et marge", () => {
-    expect(pricing.basePrice).toBe(269);
-    expect(pricing.totals).toEqual({ ht: 269, vatPercent: 20, vat: 53.8, ttc: 322.8 });
-    expect(pricing.margin.amount).toBe(65.67);
-    expect(pricing.margin.rateOnCost).toBeCloseTo(32.3, 1);
+  it("propose un prix conseillé arrondi, avec TVA et marge brute", () => {
+    expect(pricing.basePrice).toBe(299);
+    expect(pricing.totals).toEqual({ ht: 299, vatPercent: 20, vat: 59.8, ttc: 358.8 });
+    expect(pricing.margin.grossMargin).toBe(95.67);
+    // Le prix arrondi atteint au moins la marge cible de 30 % sur vente.
+    expect(pricing.margin.grossMarginRate!).toBeGreaterThanOrEqual(30);
+    expect(pricing.margin.grossMarginRate).toBeCloseTo(32, 0);
+    expect(pricing.margin.markupRate).toBeCloseTo(47.05, 1);
   });
 
   it("garde le package quand il est rentable (marge fixe faible)", () => {
@@ -88,7 +93,7 @@ describe("Simulation complète Paris → Lille", () => {
     expect(resolved).not.toBeNull();
     expect(resolved?.return.selected?.mode).toBe("TRAIN");
     expect(resolved?.access.selected?.mode).toBe("PUBLIC_TRANSIT");
-    expect(resolved?.pricing.totals.ht).toBe(269);
+    expect(resolved?.pricing.totals.ht).toBe(299);
   });
 
   it("recalcule quand l'utilisateur choisit le VTC", () => {
@@ -99,7 +104,7 @@ describe("Simulation complète Paris → Lille", () => {
     );
     expect(resolved?.return.selected?.mode).toBe("VTC");
     expect(resolved?.pricing.costs.return).toBe(189);
-    expect(resolved?.pricing.totals.ht).toBeGreaterThan(269);
+    expect(resolved?.pricing.totals.ht).toBeGreaterThan(299);
   });
 
   it("applique les corrections manuelles et les signale", () => {

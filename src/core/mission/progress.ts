@@ -19,7 +19,9 @@ export const FIELD_STEPS: readonly FieldStep[] = [
   { id: "DEPARTURE", label: "Départ", milestone: "drivingAt" },
   { id: "DESTINATION_ARRIVAL", label: "Arrivée destination", milestone: "deliveredAt" },
   { id: "END_MILEAGE", label: "Kilométrage arrivée", milestone: "deliveredAt" },
-  { id: "CUSTOMER_SIGNATURE", label: "Signature client", milestone: "deliveredAt" },
+  { id: "HANDOVER", label: "Remise du véhicule", milestone: "deliveredAt" },
+  // Formalités finalisées (PV signé, documents, frais) : clôture par Naera.
+  { id: "CUSTOMER_SIGNATURE", label: "PV de livraison signé", milestone: "completedAt" },
   { id: "COMPLETED", label: "Mission terminée", milestone: "completedAt" },
 ];
 
@@ -79,9 +81,13 @@ const ACTIONS: Record<MissionActionId, MissionAction> = {
   CONFIRM_DELIVERY: {
     id: "CONFIRM_DELIVERY",
     label: "Confirmer la livraison",
-    hint: "Arrivée, kilométrage et signature client",
+    hint: "Arrivée, kilométrage et remise physique du véhicule",
   },
-  COMPLETE: { id: "COMPLETE", label: "Clôturer la mission", hint: "Tout est en ordre" },
+  COMPLETE: {
+    id: "COMPLETE",
+    label: "Clôturer la mission",
+    hint: "PV signé, documents et frais finalisés : la mission devient facturable",
+  },
   CANCEL: { id: "CANCEL", label: "Annuler la mission", hint: "La mission n'aura pas lieu" },
 };
 

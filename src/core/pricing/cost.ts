@@ -36,7 +36,7 @@ export interface MissionCostBreakdown extends MissionCostInput {
 }
 
 /**
- * Coût réel = temps convoyeur + transport aller + carburant + péages
+ * Coût interne = temps convoyeur + transport aller + carburant + péages
  * + transport retour + frais fixes + frais variables + options + autres coûts.
  */
 export function calculateMissionCost(input: MissionCostInput): MissionCostBreakdown {

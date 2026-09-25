@@ -28,7 +28,7 @@ export default async function AdminQuotesPage() {
   );
   return (
     <div className="space-y-8">
-      <PageHeader title="Devis" description="Devis envoyés en attente de réponse et brouillons." className="mb-0" />
+      <PageHeader title="Devis" description="Devis envoyés en attente de réponse et brouillons." />
       <Section title={`En attente du client (${sent.length})`}>
         {sent.length > 0 ? list(sent) : <EmptyState icon={<FileText />} title="Aucun devis en attente" />}
       </Section>

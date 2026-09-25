@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { PORTAL_HOME, PORTAL_LABELS, type Actor, type Portal } from "@/core/access/actor";
 import { BUSINESS_ROLE_LABELS, STAFF_ROLE_LABELS } from "@/core/accounts/types";
 import { buildNavigation } from "@/core/navigation/portal-navigation";
+import { PLAN_LABELS } from "@/core/plans/features";
 import { requirePortal } from "@/services/auth/guards";
 import { getProContext } from "@/services/portals/pro-portal";
 import { PortalBottomNav, PortalSidebar, type PortalIdentity } from "./navigation";
@@ -11,7 +12,7 @@ import { PortalTopBar } from "./portal-topbar";
 /** Nom court de l'espace (barre mobile). */
 const PORTAL_SHORT_LABELS: Record<Portal, string> = {
   admin: "Back-office",
-  pro: "Espace pro",
+  pro: "Pro",
   client: "Espace client",
   driver: "Convoyeur",
 };
@@ -21,7 +22,7 @@ function describeActor(actor: Actor): string {
     case "STAFF":
       return STAFF_ROLE_LABELS[actor.staffRole];
     case "BUSINESS":
-      return `${actor.businessName} · ${BUSINESS_ROLE_LABELS[actor.role]}`;
+      return BUSINESS_ROLE_LABELS[actor.role];
     case "PERSONAL":
       return "Particulier";
     case "DRIVER":
@@ -40,17 +41,20 @@ export async function PortalLayout({ portal, children }: { portal: Portal; child
   const actor = await requirePortal(portal);
   const account = actor.kind === "BUSINESS" ? (await getProContext(actor)).account : null;
   const items = buildNavigation(portal, actor, account);
+  const planLabel = account?.entitlements.planCode ? PLAN_LABELS[account.entitlements.planCode] : null;
+  const context = account ? [account.name, planLabel].filter(Boolean).join(" · ") : null;
   const identity: PortalIdentity = {
     portalLabel: PORTAL_LABELS[portal],
     name: actor.name,
     detail: describeActor(actor),
+    context,
   };
   return (
     <div className="flex min-h-dvh">
       <PortalSidebar items={items} identity={identity} />
       <div className="min-w-0 flex-1">
         <PageContainer>
-          <PortalTopBar home={PORTAL_HOME[portal]} label={PORTAL_SHORT_LABELS[portal]} />
+          <PortalTopBar home={PORTAL_HOME[portal]} label={PORTAL_SHORT_LABELS[portal]} context={context} />
           {children}
         </PageContainer>
       </div>

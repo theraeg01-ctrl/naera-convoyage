@@ -53,6 +53,8 @@ describe("pages", () => {
       ["/pro/billing", "julien", 200],
       ["/pro/analytics", "julien", 200],
       ["/pro/team", "julien", 200],
+      ["/pro/account", "julien", 200],
+      ["/pro/account", "lea", 200],
       ["/pro/missions/new", "lea", 200],
       ["/pro/billing", "nadia", 200],
       ["/client", "sophie", 200],

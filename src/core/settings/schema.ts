@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_MARGIN_RATE_PERCENT } from "../pricing/margin";
 import {
   FUEL_TYPES,
   MARGIN_MODES,
@@ -12,6 +13,11 @@ import {
 /** Montant en euros : fini, positif ou nul, borné pour éviter les saisies aberrantes. */
 export const moneySchema = z.number().nonnegative().max(1_000_000);
 const percentSchema = z.number().min(0).max(1000);
+/** Taux de marge sur prix de vente (strictement inférieur à 100 %). */
+const marginRateSchema = z
+  .number()
+  .min(0)
+  .max(MAX_MARGIN_RATE_PERCENT, `Taux de marge sur vente : ${MAX_MARGIN_RATE_PERCENT} % maximum`);
 const minutesSchema = z
   .number()
   .int()
@@ -54,9 +60,9 @@ export const appSettingsSchema = z
       vatPercent: z.number().min(0).max(100),
       hourlyDriverCost: moneySchema,
       marginMode: z.enum(MARGIN_MODES),
-      marginPercent: percentSchema,
+      marginPercent: marginRateSchema,
       marginFixedAmount: moneySchema,
-      minimumMarginPercent: percentSchema,
+      minimumMarginPercent: marginRateSchema,
       roundingMode: z.enum(ROUNDING_MODES),
       fixedFees: z
         .array(z.object({ id: z.string().min(1), label: z.string().trim().min(1).max(60), amount: moneySchema }))

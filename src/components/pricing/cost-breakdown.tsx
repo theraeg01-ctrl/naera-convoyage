@@ -10,8 +10,10 @@ interface Segment {
 }
 
 /**
- * Répartition du prix HT : barre empilée (parties d'un tout) + légende chiffrée,
- * qui sert aussi de vue tableau. Palette catégorielle validée, ordre fixe.
+ * Répartition du prix de vente HT : barre empilée (parties d'un tout) +
+ * légende chiffrée, qui sert aussi de vue tableau. Les pourcentages sont des
+ * parts du prix de vente : celui de la marge brute est donc le taux de marge
+ * sur vente. Palette catégorielle validée, ordre fixe.
  */
 export function CostBreakdown({
   pricing,
@@ -34,7 +36,7 @@ export function CostBreakdown({
       amount: costs.fixedFees + costs.variableFees + costs.options + costs.other,
       color: "var(--series-5)",
     },
-    { id: "margin", label: "Marge", amount: Math.max(0, margin.amount), color: "var(--series-6)" },
+    { id: "margin", label: "Marge brute", amount: Math.max(0, margin.grossMargin), color: "var(--series-6)" },
   ];
   const total = segments.reduce((sum, segment) => sum + segment.amount, 0);
   const visible = segments.filter((segment) => segment.amount > 0);
@@ -68,8 +70,8 @@ export function CostBreakdown({
           </li>
         ))}
       </ul>
-      {margin.amount < 0 ? (
-        <p className="text-sm font-medium text-danger">Marge négative : le prix ne couvre pas le coût réel.</p>
+      {margin.grossMargin < 0 ? (
+        <p className="text-sm font-medium text-danger">Marge brute négative : le prix ne couvre pas le coût interne.</p>
       ) : null}
     </figure>
   );

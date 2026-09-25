@@ -33,7 +33,7 @@ export function Field({ label, htmlFor, hint, error, className, children }: Fiel
 }
 
 export const inputClassName = cn(
-  "block h-14 w-full rounded-2xl border border-border bg-surface px-4 text-foreground shadow-card",
+  "block h-12 w-full rounded-xl border border-border bg-surface px-4 text-foreground",
   "placeholder:text-faint transition-[border-color,box-shadow] duration-150",
   "hover:border-border-strong focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent-soft",
   "aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger-soft",

@@ -19,7 +19,7 @@ export default async function AdminCustomersPage() {
     <div>
       <PageHeader title="Clients particuliers" description={`${rows.length} clients`} />
       <Card className="divide-y divide-border px-5">
-        {rows.map(({ customer, hasOnlineAccount, missionCount, lastMissionDate, revenueHT, marginHT }) => (
+        {rows.map(({ customer, hasOnlineAccount, missionCount, lastMissionDate, revenueHT, grossMarginHT }) => (
           <div key={customer.id} className="flex flex-wrap items-center gap-3 py-4">
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-semibold">
@@ -42,8 +42,8 @@ export default async function AdminCustomersPage() {
                 <dd className="font-semibold tabular">{formatEuro(revenueHT)}</dd>
               </div>
               <div>
-                <dt className="text-faint">Marge</dt>
-                <dd className="font-semibold tabular">{formatEuro(marginHT)}</dd>
+                <dt className="text-faint">Marge brute</dt>
+                <dd className="font-semibold tabular">{formatEuro(grossMarginHT)}</dd>
               </div>
               <div className="hidden sm:block">
                 <dt className="text-faint">Dernière</dt>

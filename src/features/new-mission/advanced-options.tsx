@@ -174,7 +174,7 @@ export function AdvancedOptions({ control, register, errors, config }: AdvancedO
           name="marginMode"
           render={({ field }) => (
             <Segmented
-              legend="Marge"
+              legend="Marge cible"
               name={field.name}
               value={field.value}
               onChange={field.onChange}
@@ -188,7 +188,16 @@ export function AdvancedOptions({ control, register, errors, config }: AdvancedO
           )}
         />
         {marginMode !== "SETTINGS" ? (
-          <Field label="Marge personnalisée" htmlFor="marginValue" error={errors.marginValue?.message}>
+          <Field
+            label={marginMode === "PERCENT" ? "Taux de marge sur vente" : "Marge brute"}
+            htmlFor="marginValue"
+            hint={
+              marginMode === "PERCENT"
+                ? "Part du prix de vente HT : 30 % → prix = coût interne ÷ 0,70"
+                : "Montant ajouté au coût interne"
+            }
+            error={errors.marginValue?.message}
+          >
             <AffixInput
               id="marginValue"
               inputMode="decimal"

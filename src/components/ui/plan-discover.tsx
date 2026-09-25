@@ -22,7 +22,7 @@ export function PlanDiscover({ title, planLabel, features, className }: PlanDisc
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-4 rounded-3xl border border-border bg-surface px-5 py-4 shadow-card",
+        "flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-5 py-4 shadow-card",
         className,
       )}
     >

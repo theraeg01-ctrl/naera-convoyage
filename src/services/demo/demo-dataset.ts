@@ -19,7 +19,7 @@ import type { DirectorySeed } from "@/repositories/types";
  * dates calculées par rapport à aujourd'hui. Incrémenter la version force
  * la réinjection (les missions réelles ne sont jamais touchées).
  */
-export const DEMO_DATASET_VERSION = 3;
+export const DEMO_DATASET_VERSION = 4;
 
 const uuid = (group: number, n: number) => `d${group}000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 

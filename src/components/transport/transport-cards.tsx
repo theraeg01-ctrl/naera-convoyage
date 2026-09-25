@@ -22,7 +22,7 @@ interface RecommendedProps {
 export function RecommendedTransportCard({ option, reason, isRecommended = true, className }: RecommendedProps) {
   const connections = connectionsLabel(option);
   return (
-    <div className={cn("rounded-3xl border border-border bg-surface p-5 shadow-card", className)}>
+    <div className={cn("rounded-2xl border border-border bg-surface p-5 shadow-card", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">

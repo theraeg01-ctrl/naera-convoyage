@@ -1,14 +1,13 @@
 import { FileUp, ListChecks, Plus, Search } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { connection } from "next/server";
 import { PageHeader } from "@/components/layout/page-header";
-import { MissionViewCard, shortPlace } from "@/components/mission/mission-view-card";
+import { MissionRowList } from "@/components/mission/mission-row";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { inputClassName } from "@/components/ui/field";
-import { ScrollActiveIntoView } from "@/components/ui/scroll-active-into-view";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { can } from "@/core/access/permissions";
 import {
   MISSION_FILTER_LABELS,
@@ -16,10 +15,9 @@ import {
   MISSION_FILTERS,
   missionFilterFromSlug,
 } from "@/core/mission/filters";
-import { vehicleDisplayName } from "@/core/mission/types";
-import { formatEuro } from "@/core/shared/format";
 import { todayInZone } from "@/core/shared/timezone";
 import { requirePortal, withAccess } from "@/services/auth/guards";
+import { toProMissionRow } from "@/features/pro/mission-rows";
 import { listProMissions } from "@/services/portals/pro-portal";
 import { cn } from "@/utils/cn";
 
@@ -31,7 +29,7 @@ export default async function ProMissionsPage(props: PageProps<"/pro/missions">)
   const { filtre, q } = await props.searchParams;
   const active = missionFilterFromSlug(filtre);
   const search = typeof q === "string" ? q.slice(0, 80) : "";
-  const { missions, counts, authors } = await withAccess(() => listProMissions(actor, { filter: active, search }));
+  const { missions, counts } = await withAccess(() => listProMissions(actor, { filter: active, search }));
   const today = todayInZone();
   const hrefFor = (slug: string | null) => {
     const params = new URLSearchParams();
@@ -63,13 +61,13 @@ export default async function ProMissionsPage(props: PageProps<"/pro/missions">)
         }
       />
 
-      <form role="search" action="/pro/missions" className="relative mb-4">
+      <form role="search" action="/pro/missions" className="relative mb-3">
         {active !== "ALL" ? <input type="hidden" name="filtre" value={MISSION_FILTER_SLUGS[active]} /> : null}
         <label htmlFor="q" className="sr-only">
           Rechercher une mission
         </label>
         <Search
-          className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-faint"
+          className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-faint"
           aria-hidden
         />
         <input
@@ -77,61 +75,26 @@ export default async function ProMissionsPage(props: PageProps<"/pro/missions">)
           name="q"
           type="search"
           defaultValue={search}
-          placeholder="Référence, ville, immatriculation, n° de commande…"
-          className={cn(inputClassName, "h-12 pl-12")}
+          placeholder="Réf., ville, plaque…"
+          title="Référence, ville, immatriculation, n° de commande"
+          className={cn(inputClassName, "h-11 pl-11")}
         />
       </form>
 
-      <nav aria-label="Filtrer les missions" className="-mx-4 mb-6 sm:mx-0">
-        <ScrollActiveIntoView className="flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:flex-wrap sm:px-0">
-          {MISSION_FILTERS.map((filter) => {
-            const current = filter === active;
-            return (
-              <Link
-                key={filter}
-                href={hrefFor(filter === "ALL" ? null : MISSION_FILTER_SLUGS[filter])}
-                aria-current={current ? "page" : undefined}
-                className={cn(
-                  "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors",
-                  current
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-surface text-muted hover:text-foreground",
-                )}
-              >
-                {MISSION_FILTER_LABELS[filter]}
-                <span className={cn("tabular", current ? "opacity-70" : "text-faint")}>{counts[filter]}</span>
-              </Link>
-            );
-          })}
-        </ScrollActiveIntoView>
-      </nav>
+      <FilterChips
+        label="Filtrer les missions"
+        className="mb-5"
+        items={MISSION_FILTERS.map((filter) => ({
+          id: filter,
+          label: MISSION_FILTER_LABELS[filter],
+          href: hrefFor(filter === "ALL" ? null : MISSION_FILTER_SLUGS[filter]),
+          count: counts[filter],
+          current: filter === active,
+        }))}
+      />
 
       {missions.length > 0 ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {missions.map((mission) => (
-            <MissionViewCard
-              key={mission.id}
-              href={`/pro/missions/${mission.id}`}
-              reference={mission.reference}
-              isDemo={mission.isDemo}
-              status={mission.status}
-              from={shortPlace(mission.pickup)}
-              to={shortPlace(mission.dropoff)}
-              subtitle={[
-                vehicleDisplayName(mission.vehicle),
-                mission.customerReference,
-                mission.createdByUserId ? authors[mission.createdByUserId] : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-              scheduledDate={mission.scheduledDate}
-              scheduledTime={mission.scheduledTime}
-              today={today}
-              amount={formatEuro(mission.totals.ht)}
-              amountHint="HT"
-            />
-          ))}
-        </div>
+        <MissionRowList missions={missions.map(toProMissionRow)} today={today} />
       ) : (
         <EmptyState
           icon={<ListChecks />}

@@ -4,9 +4,9 @@ export type ProfitabilityStatus = "PROFITABLE" | "BELOW_TARGET" | "INSUFFICIENT"
 
 export interface ProfitabilityInput {
   packagePrice: number;
-  /** Prix cible exact (coût + marge cible). */
+  /** Prix cible exact : taux de marge cible sur vente atteint. */
   targetPrice: number;
-  /** Prix minimum rentable (coût + marge minimum). */
+  /** Prix minimum rentable : taux de marge minimum sur vente atteint. */
   minimumPrice: number;
 }
 
@@ -24,7 +24,7 @@ export const PROFITABILITY_MESSAGES: Record<ProfitabilityStatus, string> = {
 };
 
 /**
- * Compare toujours package commercial / coût réel / prix minimum rentable.
+ * Compare toujours package commercial / coût interne / prix minimum rentable.
  * Le package n'est jamais considéré rentable par défaut.
  */
 export function checkProfitability(input: ProfitabilityInput): ProfitabilityCheck {

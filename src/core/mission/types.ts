@@ -17,6 +17,12 @@ export const MISSION_STATUSES = [
 ] as const;
 export type MissionStatus = (typeof MISSION_STATUSES)[number];
 
+/**
+ * Statuts d'une mission (règles détaillées : docs/mission-lifecycle.md).
+ * DELIVERED « Livrée » = véhicule remis physiquement au destinataire (convoyeur).
+ * COMPLETED « Terminée » = formalités finalisées : PV signé, documents, frais (Naera) ;
+ * la mission devient facturable.
+ */
 export const MISSION_STATUS_LABELS: Record<MissionStatus, string> = {
   DRAFT: "Brouillon",
   QUOTED: "Devis envoyé",

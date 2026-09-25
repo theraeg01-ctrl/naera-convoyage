@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { FEATURE_LABELS } from "@/core/plans/features";
-import { formatEuro } from "@/core/shared/format";
+import { formatEuro, formatPercent } from "@/core/shared/format";
 import { requirePermission, requirePortal, withAccess } from "@/services/auth/guards";
 import { listBusinessAccountsAdmin } from "@/services/portals/admin-portal";
 
@@ -45,8 +45,15 @@ export default async function AdminBusinessesPage() {
                 <dd className="font-semibold tabular">{formatEuro(account.revenueHT)}</dd>
               </div>
               <div>
-                <dt className="text-faint">Marge</dt>
-                <dd className="font-semibold tabular">{formatEuro(account.marginHT)}</dd>
+                <dt className="text-faint">Marge brute</dt>
+                <dd className="font-semibold tabular">
+                  {formatEuro(account.grossMarginHT)}
+                  {account.grossMarginRate !== null ? (
+                    <span className="ml-1 text-xs font-normal text-faint">
+                      {formatPercent(account.grossMarginRate)}
+                    </span>
+                  ) : null}
+                </dd>
               </div>
             </dl>
             {account.entitlements.features.length > 0 ? (

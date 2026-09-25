@@ -16,14 +16,14 @@ export function RouteBrief({ pickup, dropoff, distanceKm, durationMin, children 
     <Card className="space-y-4 p-5">
       <ol className="space-y-3">
         <li className="flex gap-3">
-          <Navigation className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
+          <Navigation className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
           <div className="min-w-0">
             <p className="font-semibold">{pickup.city ?? "Départ"}</p>
             <p className="text-sm break-words text-muted">{pickup.label}</p>
           </div>
         </li>
         <li className="flex gap-3">
-          <MapPin className="mt-0.5 size-5 shrink-0 text-accent" aria-hidden />
+          <MapPin className="mt-0.5 size-5 shrink-0 text-foreground" aria-hidden />
           <div className="min-w-0">
             <p className="font-semibold">{dropoff.city ?? "Arrivée"}</p>
             <p className="text-sm break-words text-muted">{dropoff.label}</p>

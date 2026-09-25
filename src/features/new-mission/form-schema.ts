@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_MARGIN_RATE_PERCENT } from "@/core/pricing/margin";
 import {
   FUEL_TYPES,
   OPTIMIZATION_STRATEGIES,
@@ -53,6 +54,14 @@ export const newMissionFormSchema = z
   .superRefine((values, ctx) => {
     if (values.marginMode !== "SETTINGS" && parseDecimal(values.marginValue) === undefined) {
       ctx.addIssue({ code: "custom", path: ["marginValue"], message: "Indique la marge souhaitée" });
+    }
+    const marginValue = parseDecimal(values.marginValue);
+    if (values.marginMode === "PERCENT" && marginValue !== undefined && marginValue > MAX_MARGIN_RATE_PERCENT) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["marginValue"],
+        message: `Taux de marge sur vente : ${MAX_MARGIN_RATE_PERCENT} % maximum`,
+      });
     }
     const requireManual = (
       mode: TransportPreference,

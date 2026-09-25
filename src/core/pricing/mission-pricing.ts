@@ -10,7 +10,14 @@ import {
 } from "./cost";
 import { calculateMissionDuration, type MissionDurationBreakdown } from "./duration";
 import { computeFuel, type FuelComputation } from "./fuel-calculator";
-import { applyMargin, computeMargin, minimumProfitablePrice, type MarginPolicy, type MarginResult } from "./margin";
+import {
+  applyMargin,
+  computeMargin,
+  minimumProfitablePrice,
+  normalizeStoredMargin,
+  type MarginPolicy,
+  type MarginResult,
+} from "./margin";
 import { computeOptionLines, computeOptionsInternalCost, type PriceLine } from "./options";
 import { resolvePackage } from "./packages";
 import { checkProfitability, type ProfitabilityCheck } from "./profitability";
@@ -38,7 +45,7 @@ export interface MissionPricingInput {
   date: string;
   waitingMin: number;
   optionIds: readonly SelectableOptionId[];
-  /** Marge personnalisée pour cette mission (sinon : paramètres). */
+  /** Marge personnalisée pour cette mission (taux sur vente ou marge brute fixe ; sinon : paramètres). */
   marginOverride?: MarginPolicy;
   otherCosts?: number;
 }
@@ -49,15 +56,27 @@ export interface MissionPricing {
   costs: MissionCostBreakdown;
   marginPolicy: MarginPolicy;
   package: { id: PackageTier["id"]; name: string; price: number };
-  /** Prix cible exact (coût + marge), avant arrondi. */
+  /** Prix cible exact, avant arrondi : coût interne / (1 − taux de marge cible sur vente). */
   targetPrice: number;
+  /** Prix minimum rentable : coût interne / (1 − taux de marge minimum sur vente), à l'euro supérieur. */
   minimumPrice: number;
+  /**
+   * Taux de marge sur vente visés (%) : cible (null si marge brute fixe) et
+   * minimum. Absent des tarifs enregistrés avant la définition unique de la marge.
+   */
+  marginTargets?: { targetRatePercent: number | null; minimumRatePercent: number };
   /** Prix de la prestation de convoyage retenu (package ou prix cible arrondi). */
   basePrice: number;
   lines: PriceLine[];
   totals: VatBreakdown;
+  /** Marge brute, taux de marge sur vente et majoration sur coût (voir margin.ts). */
   margin: MarginResult;
   profitability: ProfitabilityCheck;
+}
+
+/** Tarif enregistré par une version antérieure : indicateurs de marge recalculés, prix inchangés. */
+export function normalizeStoredPricing(pricing: MissionPricing): MissionPricing {
+  return { ...pricing, margin: normalizeStoredMargin(pricing.margin, pricing.totals.ht, pricing.costs.total) };
 }
 
 export function marginPolicyFromSettings(pricing: AppSettings["pricing"]): MarginPolicy {
@@ -79,8 +98,9 @@ function validateInput(input: MissionPricingInput): void {
 }
 
 /**
- * Calcul complet d'une mission : durée, coût réel, package, prix minimum,
- * prix conseillé, options, TVA, marge et contrôle de rentabilité.
+ * Calcul complet d'une mission : durée, coût interne, package, prix minimum,
+ * prix conseillé, options, TVA, marge et contrôle de rentabilité. Tous les
+ * taux de marge sont exprimés sur le prix de vente HT (voir margin.ts).
  */
 export function computeMissionPricing(input: MissionPricingInput, settings: AppSettings): MissionPricing {
   validateInput(input);
@@ -149,6 +169,10 @@ export function computeMissionPricing(input: MissionPricingInput, settings: AppS
     package: { id: pkg.tier.id, name: pkg.tier.name, price: pkg.price },
     targetPrice,
     minimumPrice,
+    marginTargets: {
+      targetRatePercent: marginPolicy.mode === "PERCENT" ? marginPolicy.percent : null,
+      minimumRatePercent: pricing.minimumMarginPercent,
+    },
     basePrice,
     lines,
     totals,

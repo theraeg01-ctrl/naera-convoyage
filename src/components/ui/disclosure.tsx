@@ -16,7 +16,7 @@ export function Disclosure({ summary, hint, icon, defaultOpen, className, childr
   return (
     <details
       open={defaultOpen}
-      className={cn("group rounded-3xl border border-border bg-surface shadow-card", className)}
+      className={cn("group rounded-2xl border border-border bg-surface shadow-card", className)}
     >
       <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-5 py-3 [&::-webkit-details-marker]:hidden">
         {icon ? <span className="text-faint [&_svg]:size-5">{icon}</span> : null}

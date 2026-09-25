@@ -2,47 +2,22 @@ import { ArrowRight, CircleCheck, Clock3, History, Plus, Wallet } from "lucide-r
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { MissionViewCard, shortPlace } from "@/components/mission/mission-view-card";
-import { Badge } from "@/components/ui/badge";
+import { MissionRowList, shortReference } from "@/components/mission/mission-row";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, Section } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PlanDiscover } from "@/components/ui/plan-discover";
-import type { CustomerMissionView } from "@/core/access/projections";
 import { can } from "@/core/access/permissions";
-import { vehicleDisplayName } from "@/core/mission/types";
-import { hasFeature, PLAN_LABELS } from "@/core/plans/features";
-import { formatEuro, formatKm } from "@/core/shared/format";
+import { hasFeature } from "@/core/plans/features";
+import { PERIMETER_LABELS } from "@/core/analytics/business-analytics";
+import { formatEuro } from "@/core/shared/format";
 import { todayInZone } from "@/core/shared/timezone";
 import { requirePortal, withAccess } from "@/services/auth/guards";
+import { toProMissionRow } from "@/features/pro/mission-rows";
 import { getPlanOffer, getProContext, getProDashboard } from "@/services/portals/pro-portal";
 import { formatEventTime, formatLongDay } from "@/utils/dates";
 
 export const metadata: Metadata = { title: "Dashboard" };
-
-function MissionList({ missions, today }: { missions: CustomerMissionView[]; today: string }) {
-  return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {missions.map((mission) => (
-        <MissionViewCard
-          key={mission.id}
-          href={`/pro/missions/${mission.id}`}
-          reference={mission.reference}
-          isDemo={mission.isDemo}
-          status={mission.status}
-          from={shortPlace(mission.pickup)}
-          to={shortPlace(mission.dropoff)}
-          subtitle={[vehicleDisplayName(mission.vehicle), mission.customerReference].filter(Boolean).join(" · ")}
-          scheduledDate={mission.scheduledDate}
-          scheduledTime={mission.scheduledTime}
-          today={today}
-          amount={formatEuro(mission.totals.ht)}
-          amountHint="HT"
-        />
-      ))}
-    </div>
-  );
-}
 
 /**
  * Dashboard professionnel : d'abord ce qui demande une action, puis ce qui
@@ -58,17 +33,12 @@ export default async function ProDashboardPage() {
       ? await withAccess(() => getPlanOffer(actor, "analytics_basic"))
       : null;
   const today = todayInZone();
-  const { kpis } = data;
-  const planCode = account.entitlements.planCode;
+  const { metrics } = data;
 
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-muted">{account.name}</p>
-            {planCode ? <Badge tone="outline">{PLAN_LABELS[planCode]}</Badge> : null}
-          </div>
           <h1 className="text-[30px] leading-tight font-semibold tracking-tight">Bonjour {actor.name.split(" ")[0]}</h1>
           <p className="text-[15px] text-muted first-letter:uppercase">{formatLongDay(today)}</p>
         </div>
@@ -87,7 +57,7 @@ export default async function ProDashboardPage() {
               {data.toConfirm.length === 1 ? "Un devis attend" : `${data.toConfirm.length} devis attendent`} votre
               confirmation.
             </p>
-            <MissionList missions={data.toConfirm} today={today} />
+            <MissionRowList missions={data.toConfirm.map(toProMissionRow)} today={today} />
           </>
         ) : (
           <Card className="px-5 py-4 text-[15px] text-muted">Aucune action en attente.</Card>
@@ -99,7 +69,7 @@ export default async function ProDashboardPage() {
         icon={<Clock3 className="size-3.5" aria-hidden />}
       >
         {data.inProgress.length > 0 ? (
-          <MissionList missions={data.inProgress} today={today} />
+          <MissionRowList missions={data.inProgress.map(toProMissionRow)} today={today} />
         ) : (
           <EmptyState title="Aucune mission en cours" description="Les convoyages démarrés apparaissent ici." />
         )}
@@ -118,22 +88,22 @@ export default async function ProDashboardPage() {
         }
       >
         <Card className="p-5">
-          <p className="text-[32px] leading-none font-semibold tracking-tight">
-            {formatEuro(kpis.spendThisMonthHT)} <span className="text-base font-medium text-muted">HT</span>
+          <p className="text-[32px] leading-none font-semibold tracking-tight tabular">
+            {formatEuro(metrics.confirmed.spendHT)}
           </p>
-          <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-sm">
-            <div>
-              <dt className="text-faint">Missions</dt>
-              <dd className="text-[17px] font-semibold tabular">{kpis.missionsThisMonth}</dd>
-            </div>
-            <div>
-              <dt className="text-faint">Livrées</dt>
-              <dd className="text-[17px] font-semibold tabular">{kpis.completedThisMonth}</dd>
-            </div>
-            <div>
-              <dt className="text-faint">Convoyés</dt>
-              <dd className="text-[17px] font-semibold tabular">{formatKm(kpis.convoyedKmThisMonth)}</dd>
-            </div>
+          <p className="mt-1.5 text-sm text-muted">HT · missions confirmées du mois</p>
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 sm:grid-cols-4">
+            {[
+              { label: `${PERIMETER_LABELS.REQUESTED} ce mois`, value: metrics.requested.missionCount },
+              { label: PERIMETER_LABELS.CONFIRMED, value: metrics.confirmed.missionCount },
+              { label: PERIMETER_LABELS.DELIVERED, value: metrics.delivered.missionCount },
+              { label: "En cours", value: metrics.inProgress },
+            ].map((item) => (
+              <div key={item.label} className="min-w-0">
+                <dt className="text-[13px] text-muted">{item.label}</dt>
+                <dd className="mt-0.5 text-lg font-semibold tabular">{item.value}</dd>
+              </div>
+            ))}
           </dl>
         </Card>
         {analyticsOffer ? (
@@ -157,7 +127,10 @@ export default async function ProDashboardPage() {
                 <span className="min-w-0">
                   <span className="block truncate text-[15px] font-medium">{item.label}</span>
                   <span className="block truncate text-sm text-muted">
-                    <span className="font-mono text-xs">{item.reference}</span> · {item.route}
+                    {item.route}
+                    <span className="ml-2 font-mono text-xs text-faint" title={item.reference}>
+                      {shortReference(item.reference)}
+                    </span>
                   </span>
                 </span>
                 <time dateTime={item.at} className="shrink-0 text-sm text-faint tabular">

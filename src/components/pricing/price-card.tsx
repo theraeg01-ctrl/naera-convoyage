@@ -30,21 +30,22 @@ export function PriceCard({ pricing, mode, label = "Prix conseillé", className 
         dont TVA {formatPercent(totals.vatPercent)} : {formatEuro(totals.vat, 2)}
       </p>
       {mode === "internal" ? (
-        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-(--price-line) pt-4">
+        <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-(--price-line) pt-4">
           <div>
-            <p className="text-xs font-medium text-price-muted">Coût interne Naera</p>
-            <p className="mt-0.5 text-lg font-semibold">{formatEuro(Math.round(costs.total))}</p>
+            <dt className="text-xs font-medium text-price-muted">Coût interne</dt>
+            <dd className="mt-0.5 text-base font-semibold tabular">{formatEuro(costs.total, 2)}</dd>
           </div>
           <div>
-            <p className="text-xs font-medium text-price-muted">Marge</p>
-            <p className="mt-0.5 text-lg font-semibold">
-              {formatEuro(Math.round(margin.amount))}
-              {margin.rateOnCost !== null ? (
-                <span className="ml-1.5 text-sm font-medium text-price-muted">{formatPercent(margin.rateOnCost)}</span>
-              ) : null}
-            </p>
+            <dt className="text-xs font-medium text-price-muted">Marge brute</dt>
+            <dd className="mt-0.5 text-base font-semibold tabular">{formatEuro(margin.grossMargin, 2)}</dd>
           </div>
-        </div>
+          <div>
+            <dt className="text-xs font-medium text-price-muted">Taux de marge sur vente</dt>
+            <dd className="mt-0.5 text-base font-semibold tabular">
+              {margin.grossMarginRate === null ? "—" : formatPercent(margin.grossMarginRate, 1)}
+            </dd>
+          </div>
+        </dl>
       ) : null}
     </div>
   );

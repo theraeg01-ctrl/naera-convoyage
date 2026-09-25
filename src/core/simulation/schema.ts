@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_MARGIN_RATE_PERCENT } from "../pricing/margin";
 import { DATA_SOURCES, ROUTE_KINDS } from "../routing/types";
 import { FUEL_TYPES, OPTIMIZATION_STRATEGIES, SELECTABLE_OPTION_IDS, VEHICLE_CATEGORIES } from "../settings/types";
 import { isValidLocalDate, isValidTime } from "../shared/calendar";
@@ -7,7 +8,11 @@ import { TRANSPORT_MODES } from "../transport/types";
 const transportPreferenceSchema = z.enum(["AUTO", ...TRANSPORT_MODES]);
 
 export const marginPolicySchema = z.discriminatedUnion("mode", [
-  z.object({ mode: z.literal("PERCENT"), percent: z.number().min(0).max(500) }),
+  z.object({
+    mode: z.literal("PERCENT"),
+    // Taux de marge sur prix de vente (voir core/pricing/margin.ts).
+    percent: z.number().min(0).max(MAX_MARGIN_RATE_PERCENT, `${MAX_MARGIN_RATE_PERCENT} % maximum`),
+  }),
   z.object({ mode: z.literal("FIXED"), amount: z.number().min(0).max(10_000) }),
 ]);
 

@@ -14,6 +14,7 @@ import { sortMissionsBySchedule } from "@/core/mission/filters";
 import type { MissionActionId } from "@/core/mission/progress";
 import type { Mission, MissionStatus } from "@/core/mission/types";
 import { PLAN_LABELS, type Entitlements } from "@/core/plans/features";
+import { financeTotals, type FinanceTotals } from "@/core/finance/finance-totals";
 import { roundMoney } from "@/core/shared/money";
 import { z } from "zod";
 import { MissionServiceError } from "../mission/mission-service";
@@ -26,23 +27,10 @@ import { assertStaff, getAppRepositories, getMissionService, today } from "./com
  * pricing.internal / finance.read selon le rôle.
  */
 
-const BOOKED: readonly MissionStatus[] = ["CONFIRMED", "ASSIGNED", "IN_PROGRESS", "DELIVERED", "COMPLETED"];
 const ACTIVE: readonly MissionStatus[] = ["ASSIGNED", "IN_PROGRESS", "DELIVERED"];
 
-interface Money {
-  revenueHT: number;
-  costHT: number;
-  marginHT: number;
-}
-
-function totals(missions: readonly Mission[]): Money {
-  const booked = missions.filter((mission) => BOOKED.includes(mission.status));
-  return {
-    revenueHT: roundMoney(booked.reduce((t, m) => t + m.pricing.totals.ht, 0)),
-    costHT: roundMoney(booked.reduce((t, m) => t + m.pricing.costs.total, 0)),
-    marginHT: roundMoney(booked.reduce((t, m) => t + m.pricing.margin.amount, 0)),
-  };
-}
+/** Agrégats financiers : un seul calcul (core/finance), taux toujours sur vente. */
+const totals = financeTotals;
 
 export async function listAdminMissions(actor: Actor | null): Promise<Mission[]> {
   assertStaff(actor, "missions.read");
@@ -130,7 +118,7 @@ export async function assignDriver(
   });
 }
 
-export interface BusinessAccountRow extends Money {
+export interface BusinessAccountRow extends FinanceTotals {
   id: string;
   name: string;
   segment: string | null;
@@ -163,7 +151,7 @@ export async function listBusinessAccountsAdmin(actor: Actor | null): Promise<Bu
   });
 }
 
-export interface PersonalCustomerRow extends Money {
+export interface PersonalCustomerRow extends FinanceTotals {
   customer: PersonalCustomer;
   hasOnlineAccount: boolean;
   missionCount: number;
@@ -226,18 +214,16 @@ export async function listQuotesAdmin(actor: Actor | null): Promise<Mission[]> {
   );
 }
 
-export interface FinanceMonth extends Money {
+export interface FinanceMonth extends FinanceTotals {
   month: string;
-  missions: number;
 }
 
 export interface FinanceOverview {
   month: FinanceMonth;
   months: FinanceMonth[];
-  marginRate: number | null;
   receivablesTTC: number;
   paidThisMonthTTC: number;
-  topAccounts: { name: string; revenueHT: number; marginHT: number }[];
+  topAccounts: ({ name: string } & FinanceTotals)[];
 }
 
 function monthsBack(day: string, count: number): string[] {
@@ -259,7 +245,7 @@ export async function getFinanceOverview(actor: Actor | null): Promise<FinanceOv
   const day = today();
   const months = monthsBack(day, 6).map((month) => {
     const inMonth = missions.filter((mission) => mission.scheduledDate.startsWith(month));
-    return { month, missions: inMonth.filter((m) => BOOKED.includes(m.status)).length, ...totals(inMonth) };
+    return { month, ...totals(inMonth) };
   });
   const current = months[months.length - 1];
   const sumTTC = (list: Invoice[]) => roundMoney(list.reduce((t, invoice) => t + invoice.amountTTC, 0));
@@ -269,15 +255,13 @@ export async function getFinanceOverview(actor: Actor | null): Promise<FinanceOv
         (mission) =>
           mission.ownership.businessAccountId === account.id && mission.scheduledDate.startsWith(current.month),
       );
-      const money = totals(own);
-      return { name: account.name, revenueHT: money.revenueHT, marginHT: money.marginHT };
+      return { name: account.name, ...totals(own) };
     })
     .filter((row) => row.revenueHT > 0)
-    .sort((a, b) => b.marginHT - a.marginHT);
+    .sort((a, b) => b.grossMarginHT - a.grossMarginHT);
   return {
     month: current,
     months,
-    marginRate: current.costHT > 0 ? (current.marginHT / current.costHT) * 100 : null,
     receivablesTTC: sumTTC(invoices.filter((invoice) => invoice.status === "ISSUED" || invoice.status === "OVERDUE")),
     paidThisMonthTTC: sumTTC(invoices.filter((invoice) => invoice.paidAt?.startsWith(current.month))),
     topAccounts,

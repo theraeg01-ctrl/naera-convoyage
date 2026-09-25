@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { calculateDriverCost, calculateFixedFees, calculateMissionCost, calculateVariableFees } from "../pricing/cost";
 import { calculateMissionDuration } from "../pricing/duration";
 import { calculateFuelCost, computeFuel } from "../pricing/fuel-calculator";
-import { applyMargin, computeMargin, minimumProfitablePrice } from "../pricing/margin";
+import {
+  applyMargin,
+  computeMargin,
+  grossMarginRate,
+  markupRate,
+  minimumProfitablePrice,
+  normalizeStoredMargin,
+  priceForMarginRate,
+} from "../pricing/margin";
 import { checkProfitability } from "../pricing/profitability";
 import { computeVat } from "../pricing/vat";
 import { DomainError } from "../shared/errors";
@@ -131,29 +139,60 @@ describe("TVA", () => {
   });
 });
 
-describe("Marge", () => {
-  it("applique un pourcentage sur le coût", () => {
-    expect(applyMargin(200, { mode: "PERCENT", percent: 30 })).toBe(260);
+describe("Marge : définitions uniques", () => {
+  it("marge brute, taux de marge sur vente et majoration sur coût (259 € / 198 €)", () => {
+    const margin = computeMargin(259, 198);
+    expect(margin.grossMargin).toBe(61);
+    expect(margin.grossMarginRate).toBeCloseTo(23.55, 2);
+    expect(margin.markupRate).toBeCloseTo(30.81, 2);
+    expect(grossMarginRate(259, 198)).toBeCloseTo((61 / 259) * 100, 10);
+    expect(markupRate(259, 198)).toBeCloseTo((61 / 198) * 100, 10);
   });
 
-  it("applique un montant fixe", () => {
+  it("une marge cible de 30 % se calcule sur le prix de vente : prix = coût / (1 − 30 %)", () => {
+    expect(priceForMarginRate(198, 30)).toBe(282.86);
+    expect(applyMargin(198, { mode: "PERCENT", percent: 30 })).toBe(282.86);
+    expect(grossMarginRate(282.86, 198)).toBeCloseTo(30, 2);
+  });
+
+  it("une marge de 30 % n'est PAS une majoration de 30 %", () => {
+    const withMargin = applyMargin(200, { mode: "PERCENT", percent: 30 });
+    const withMarkup = 200 * 1.3;
+    expect(withMargin).toBe(285.71);
+    expect(withMargin).not.toBe(withMarkup);
+    // Majorer le coût de 30 % ne donne que 23,08 % de marge sur vente…
+    expect(grossMarginRate(withMarkup, 200)).toBeCloseTo(23.08, 2);
+    // … alors qu'une marge de 30 % correspond à une majoration de 42,86 %.
+    expect(markupRate(withMargin, 200)).toBeCloseTo(42.86, 1);
+  });
+
+  it("marge brute fixe : ajoutée au coût interne", () => {
     expect(applyMargin(200, { mode: "FIXED", amount: 80 })).toBe(280);
   });
 
-  it("calcule le prix minimum rentable arrondi à l'euro supérieur", () => {
-    expect(minimumProfitablePrice(203.33, 10)).toBe(224);
-    expect(minimumProfitablePrice(200, 10)).toBe(220);
+  it("prix minimum rentable : taux minimum sur vente, arrondi à l'euro supérieur", () => {
+    expect(minimumProfitablePrice(200, 10)).toBe(223); // 222,22 → 223
+    expect(minimumProfitablePrice(203.33, 10)).toBe(226); // 225,92 → 226
+    expect(grossMarginRate(minimumProfitablePrice(203.33, 10), 203.33)!).toBeGreaterThanOrEqual(10);
+    expect(minimumProfitablePrice(198, 30)).toBe(283);
   });
 
-  it("calcule marge €, taux de marge et taux de marque", () => {
-    const margin = computeMargin(279, 186);
-    expect(margin.amount).toBe(93);
-    expect(margin.rateOnCost).toBeCloseTo(50);
-    expect(margin.rateOnPrice).toBeCloseTo(33.33, 2);
+  it("refuse un taux de marge sur vente de 100 % ou plus", () => {
+    expect(() => priceForMarginRate(100, 100)).toThrow(DomainError);
+    expect(() => applyMargin(100, { mode: "PERCENT", percent: 120 })).toThrow(DomainError);
+    expect(() => minimumProfitablePrice(100, 96)).toThrow(DomainError);
   });
 
   it("évite toute division par zéro", () => {
-    expect(computeMargin(0, 0)).toEqual({ amount: 0, rateOnCost: null, rateOnPrice: null });
+    expect(computeMargin(0, 0)).toEqual({ grossMargin: 0, grossMarginRate: null, markupRate: null });
+  });
+
+  it("relit les anciens tarifs enregistrés (taux recalculés sur le prix de vente)", () => {
+    const legacy = { amount: 61, rateOnCost: 30.8, rateOnPrice: 23.55 };
+    const margin = normalizeStoredMargin(legacy, 259, 198);
+    expect(margin.grossMargin).toBe(61);
+    expect(margin.grossMarginRate).toBeCloseTo(23.55, 2);
+    expect(margin).not.toHaveProperty("rateOnCost");
   });
 });
 

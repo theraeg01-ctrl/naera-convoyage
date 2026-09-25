@@ -13,7 +13,7 @@ export function QuoteSummary({
 }) {
   const { lines, totals } = pricing;
   return (
-    <div className={cn("rounded-3xl border border-border bg-surface px-5 shadow-card", className)}>
+    <div className={cn("rounded-2xl border border-border bg-surface px-5 shadow-card", className)}>
       <ul className="divide-y divide-border">
         {lines.map((line) => (
           <li key={line.id} className="flex items-start justify-between gap-4 py-3.5">

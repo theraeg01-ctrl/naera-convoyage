@@ -34,7 +34,7 @@ export function buildSettingsSections(settings: AppSettings): SettingsSection[] 
     {
       id: "pricing",
       title: "Tarification",
-      description: "Coût horaire, marge, TVA et arrondi commercial",
+      description: "Coût horaire, marge sur prix de vente, TVA et arrondi commercial",
       fields: [
         { kind: "number", path: "pricing.hourlyDriverCost", label: "Coût convoyeur", unit: "€/h", step: 0.5 },
         {
@@ -42,18 +42,25 @@ export function buildSettingsSections(settings: AppSettings): SettingsSection[] 
           path: "pricing.marginMode",
           label: "Méthode de marge",
           options: [
-            { value: "PERCENT", label: "Pourcentage du coût" },
-            { value: "FIXED", label: "Montant fixe" },
+            { value: "PERCENT", label: "Taux de marge sur prix de vente" },
+            { value: "FIXED", label: "Marge brute fixe (€)" },
           ],
         },
-        { kind: "number", path: "pricing.marginPercent", label: "Marge cible", unit: "%", step: 1 },
-        { kind: "number", path: "pricing.marginFixedAmount", label: "Marge fixe", unit: "€", step: 1 },
+        {
+          kind: "number",
+          path: "pricing.marginPercent",
+          label: "Marge cible",
+          unit: "%",
+          hint: "Taux de marge sur prix de vente HT : prix = coût interne ÷ (1 − taux). 30 % n'est pas +30 % sur le coût.",
+          step: 1,
+        },
+        { kind: "number", path: "pricing.marginFixedAmount", label: "Marge brute fixe", unit: "€", step: 1 },
         {
           kind: "number",
           path: "pricing.minimumMarginPercent",
           label: "Marge minimum",
           unit: "%",
-          hint: "Sert au calcul du prix minimum rentable",
+          hint: "Taux de marge sur prix de vente sous lequel une mission n'est pas rentable (prix minimum rentable)",
           step: 1,
         },
         { kind: "number", path: "pricing.vatPercent", label: "TVA", unit: "%", step: 0.1 },
@@ -180,7 +187,7 @@ export function buildSettingsSections(settings: AppSettings): SettingsSection[] 
     {
       id: "packages",
       title: "Packages",
-      description: "Grille commerciale — toujours comparée au coût réel",
+      description: "Grille commerciale — toujours comparée au coût interne",
       fields: settings.packages.flatMap((pkg, index): SettingsField[] => {
         const base: SettingsField = {
           kind: "number",

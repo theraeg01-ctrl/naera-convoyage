@@ -33,24 +33,28 @@ export default async function ProAnalyticsPage() {
       <PageHeader
         title="Analytics"
         description={<span className="first-letter:uppercase">{formatMonthLong(analytics.month)}</span>}
-        className="mb-0"
       />
       {basic ? (
         <>
           <section aria-label="Dépenses du mois" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatTile label="Missions confirmées" value={basic.missionCount} />
-            <StatTile label="Dépenses" value={formatEuro(basic.totalSpendHT)} hint="HT" />
+            <StatTile label="Missions confirmées" value={basic.current.missionCount} />
+            <StatTile label="Dépenses" value={formatEuro(basic.current.spendHT)} hint="HT" />
             <StatTile
-              label="Dépense moyenne par mission"
-              value={basic.averageSpendPerMission !== null ? formatEuro(basic.averageSpendPerMission) : "—"}
-              hint="HT"
+              label="Dépense moyenne"
+              value={
+                basic.current.averageSpendPerMission !== null ? formatEuro(basic.current.averageSpendPerMission) : "—"
+              }
+              hint="Par mission, HT"
             />
             <StatTile
               label="Dépense moyenne par kilomètre"
-              value={basic.averageSpendPerKm !== null ? formatEuro(basic.averageSpendPerKm, 2) : "—"}
-              hint={`${formatKm(basic.convoyedKm)} convoyés`}
+              value={basic.current.averageSpendPerKm !== null ? formatEuro(basic.current.averageSpendPerKm, 2) : "—"}
+              hint={`HT · ${formatKm(basic.current.distanceKm)} au total`}
             />
           </section>
+          <p className="-mt-4 px-1 text-sm text-faint">
+            Périmètre : missions confirmées prévues ce mois-ci (devis en attente et annulations exclus).
+          </p>
           <Section title="Dépenses mensuelles (HT)">
             <Card className="p-5">
               <ColumnChart

@@ -25,7 +25,7 @@ export function RouteSummary({ pickup, dropoff, route, showSource = true, classN
         <p className="truncate text-[32px] leading-none font-bold tracking-tight sm:text-4xl" title={pickup.label}>
           {placeTitle(pickup)}
         </p>
-        <ArrowDown className="my-1 size-6 text-accent" aria-label="vers" strokeWidth={2.5} />
+        <ArrowDown className="my-1 size-5 text-faint" aria-label="vers" strokeWidth={2.5} />
         <p className="truncate text-[32px] leading-none font-bold tracking-tight sm:text-4xl" title={dropoff.label}>
           {placeTitle(dropoff)}
         </p>

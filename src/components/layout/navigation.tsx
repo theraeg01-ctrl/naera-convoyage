@@ -51,8 +51,10 @@ const ICONS: Record<NavIcon, LucideIcon> = {
 export interface PortalIdentity {
   portalLabel: string;
   name: string;
-  /** Rôle ou organisation affichés sous le nom. */
+  /** Rôle affiché sous le nom. */
   detail: string;
+  /** Contexte de compte pro : « Garage Martin · Pro Plus ». */
+  context?: string | null;
 }
 
 /**
@@ -122,6 +124,11 @@ export function PortalSidebar({ items, identity }: { items: NavItem[]; identity:
         <Logo />
       </Link>
       <p className="mt-4 px-2 text-xs font-semibold tracking-[0.08em] text-faint uppercase">{identity.portalLabel}</p>
+      {identity.context ? (
+        <p className="mt-1 truncate px-2 text-sm font-medium text-muted" title={identity.context}>
+          {identity.context}
+        </p>
+      ) : null}
       {primary ? (
         <Link
           href={primary.href}
