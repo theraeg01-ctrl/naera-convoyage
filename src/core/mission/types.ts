@@ -36,7 +36,14 @@ export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
   PROFESSIONAL: "Professionnel",
 };
 
-export interface CustomerInfo {
+/**
+ * Contact client FIGÉ au moment de la commande (nom, téléphone, e-mail).
+ * Ce n'est pas la source de vérité du client : les coordonnées à jour sont
+ * dans PersonalCustomer (particulier) ou BusinessAccount + utilisateur (pro).
+ * Le snapshot garantit que la mission, le devis et la facture restent
+ * cohérents même si le client modifie ses coordonnées plus tard.
+ */
+export interface CustomerSnapshot {
   type: CustomerType;
   firstName?: string;
   lastName?: string;
@@ -135,8 +142,8 @@ export interface Mission {
   scheduledTime: string;
   pickup: Place;
   dropoff: Place;
-  /** Contact figé au moment de la commande (nom, téléphone…). */
-  customer: CustomerInfo | null;
+  /** Contact client figé au moment de la commande (voir CustomerSnapshot). */
+  customerSnapshot: CustomerSnapshot | null;
   ownership: MissionOwnership;
   assignment: MissionAssignment | null;
   /** Contacts sur place, transmis au convoyeur. */
@@ -152,10 +159,13 @@ export interface Mission {
   dataMode: DataMode;
   progress: MissionProgress;
   events: MissionEvent[];
+  /** Consignes opérationnelles (accès, clés…) : visibles du convoyeur et du client. */
   notes: string | null;
+  /** Notes internes Naera : jamais exposées aux portails client, pro ou convoyeur. */
+  internalNotes: string | null;
 }
 
-export function customerDisplayName(customer: CustomerInfo | null): string {
+export function customerDisplayName(customer: CustomerSnapshot | null): string {
   if (!customer) return "Client à définir";
   const person = [customer.firstName, customer.lastName].filter(Boolean).join(" ");
   if (customer.type === "PROFESSIONAL" && customer.companyName) return customer.companyName;

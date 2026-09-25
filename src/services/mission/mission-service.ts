@@ -5,7 +5,7 @@ import { applyMissionAction, type MissionActionId } from "@/core/mission/progres
 import {
   DEFAULT_OWNERSHIP,
   type ContactPerson,
-  type CustomerInfo,
+  type CustomerSnapshot,
   type Mission,
   type MissionAssignment,
   type MissionEvent,
@@ -53,10 +53,14 @@ export interface CreateOptions {
 
 /** Informations descriptives d'une commande (hors tarif). */
 export interface OrderDetails {
-  customer: CustomerInfo | null;
+  /** Contact figé au moment de la commande (lu dans le compte, jamais saisi librement côté portail). */
+  customerSnapshot: CustomerSnapshot | null;
   vehicle: Pick<VehicleInfo, "make" | "model" | "plate">;
   contacts?: { pickup: ContactPerson | null; dropoff: ContactPerson | null };
+  /** Consignes visibles du convoyeur et du client. */
   notes?: string | null;
+  /** Notes internes Naera (back-office uniquement). */
+  internalNotes?: string | null;
 }
 
 /** Devis calculé entièrement côté serveur. */
@@ -101,12 +105,12 @@ export class MissionService {
       logTechnicalError("Mission invalide", parsed.error);
       throw new MissionServiceError("INVALID_INPUT", "Certaines informations sont invalides. Vérifie la saisie.");
     }
-    const { simulation, selections, customer, vehicle, notes } = parsed.data;
+    const { simulation, selections, customer, vehicle, notes, internalNotes } = parsed.data;
     const settings = await getSettings();
     const resolved = resolveSimulation(simulation as SimulationResult, selections as SimulationSelections, settings);
     if (!resolved) throw new MissionServiceError("ROUTE_REQUIRED", ROUTE_REQUIRED_MESSAGE);
     return this.persist(simulation as SimulationResult, selections as SimulationSelections, resolved, {
-      details: { customer, vehicle, notes },
+      details: { customerSnapshot: customer, vehicle, notes, internalNotes },
       options,
     });
   }
@@ -163,7 +167,7 @@ export class MissionService {
         scheduledTime: request.time,
         pickup: simulation.pickup,
         dropoff: simulation.dropoff,
-        customer: details.customer,
+        customerSnapshot: details.customerSnapshot,
         ownership: options.ownership ?? { ...DEFAULT_OWNERSHIP },
         assignment: options.assignment ?? null,
         contacts: details.contacts ?? { pickup: null, dropoff: null },
@@ -179,6 +183,7 @@ export class MissionService {
         progress: options.progress ?? {},
         events,
         notes: details.notes ?? null,
+        internalNotes: details.internalNotes ?? null,
       },
       now,
     );

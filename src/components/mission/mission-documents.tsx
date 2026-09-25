@@ -1,5 +1,4 @@
 import { Download, FileText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { MissionProgress, MissionStatus } from "@/core/mission/types";
 
@@ -42,7 +41,6 @@ export function MissionDocuments({
             <span className="block truncate text-[15px] font-medium">{document.label}</span>
             <span className="block truncate text-sm text-faint">{document.detail}</span>
           </span>
-          <Badge tone="outline">Bientôt</Badge>
           <button
             type="button"
             disabled
@@ -53,6 +51,7 @@ export function MissionDocuments({
           </button>
         </div>
       ))}
+      <p className="py-3 text-sm text-faint">Téléchargement des documents bientôt disponible.</p>
     </Card>
   );
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Actor } from "../access/actor";
 import { allowedMissionActions } from "../access/mission-actions";
 import { can, permissionsOf } from "../access/permissions";
+import { findInternalFields } from "@/test/internal-fields";
 import { toCustomerMissionView, toDriverMissionView } from "../access/projections";
 import { isInScope, missionScopeFor } from "../access/scope";
 import { computeBusinessDashboard } from "../analytics/business-analytics";
@@ -41,7 +42,7 @@ function buildMission(patch: Partial<Mission> = {}): Mission {
     scheduledTime: "09:00",
     pickup: simulation.pickup,
     dropoff: simulation.dropoff,
-    customer: { type: "PROFESSIONAL", companyName: "Garage Martin", phone: "03 20 00 00 00" },
+    customerSnapshot: { type: "PROFESSIONAL", companyName: "Garage Martin", phone: "03 20 00 00 00" },
     ownership: { ...DEFAULT_OWNERSHIP, channel: "PRO_PORTAL", businessAccountId: "biz-martin" },
     assignment: { driverProfileId: "drv-karim", driverName: "Karim Benali", status: "ACCEPTED", assignedAt: "x" },
     contacts: { pickup: { name: "Atelier", phone: "03 20 11 22 33" }, dropoff: null },
@@ -56,7 +57,8 @@ function buildMission(patch: Partial<Mission> = {}): Mission {
     dataMode: "DEMO",
     progress: { startedAt: "a", inspectedAt: "b" },
     events: [{ id: "e1", type: "CREATED", label: "Mission créée", at: "2026-09-20T08:00:00.000Z" }],
-    notes: null,
+    notes: "Clés à l'accueil",
+    internalNotes: "Client exigeant sur les délais",
     ...patch,
   };
 }
@@ -176,6 +178,15 @@ describe("Vues par audience : aucune donnée de rentabilité exposée", () => {
       }),
     );
     expect(view.events.map((event) => event.label)).toEqual(["Mission créée", "Convoyeur affecté"]);
+  });
+
+  it("aucune vue externe ne contient la note interne Naera", () => {
+    for (const view of [toCustomerMissionView(mission), toDriverMissionView(mission)]) {
+      expect(findInternalFields(view)).toEqual([]);
+      expect(JSON.stringify(view)).not.toContain("Client exigeant");
+    }
+    expect(toCustomerMissionView(mission).instructions).toBe("Clés à l'accueil");
+    expect(toDriverMissionView(mission).instructions).toBe("Clés à l'accueil");
   });
 
   it("la vue convoyeur ne contient aucun montant", () => {

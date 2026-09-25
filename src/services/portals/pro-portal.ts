@@ -19,8 +19,9 @@ import {
   type MissionFilter,
 } from "@/core/mission/filters";
 import type { MissionActionId } from "@/core/mission/progress";
+import { recentActivity, type ActivityItem } from "@/core/mission/activity";
 import { customerTracking, type TrackingStage } from "@/core/mission/tracking";
-import { hasFeature, type Entitlements } from "@/core/plans/features";
+import { FEATURE_LABELS, hasFeature, type Entitlements, type FeatureKey } from "@/core/plans/features";
 import { assertBusiness, getAppRepositories, getMissionService, today, type BusinessActor } from "./common";
 
 /**
@@ -65,12 +66,12 @@ async function accountMissions(actor: BusinessActor): Promise<CustomerMissionVie
   return (await service.list(missionScopeFor(actor))).map(toCustomerMissionView);
 }
 
+/** Dashboard pro : ce qui demande une action, ce qui roule, les dépenses, l'activité. */
 export interface ProDashboardData {
   kpis: BusinessDashboard;
-  today: CustomerMissionView[];
-  inProgress: CustomerMissionView[];
   toConfirm: CustomerMissionView[];
-  recent: CustomerMissionView[];
+  inProgress: CustomerMissionView[];
+  activity: ActivityItem[];
 }
 
 export async function getProDashboard(actor: Actor | null): Promise<ProDashboardData> {
@@ -84,13 +85,9 @@ export async function getProDashboard(actor: Actor | null): Promise<ProDashboard
     );
   return {
     kpis: computeBusinessDashboard(missions, day),
-    today: pick("TODAY"),
-    inProgress: pick("IN_PROGRESS"),
     toConfirm: pick("TO_CONFIRM"),
-    recent: sortMissionsBySchedule(
-      missions.filter((mission) => matchesMissionFilter(mission, "DONE", day)),
-      "desc",
-    ).slice(0, 4),
+    inProgress: pick("IN_PROGRESS"),
+    activity: recentActivity(missions, new Date()),
   };
 }
 
@@ -231,4 +228,20 @@ export async function getProTeam(actor: Actor | null): Promise<TeamMemberView[]>
     status: member.status,
     isCurrentUser: member.id === actor.memberId,
   }));
+}
+
+/** Présentation d'une offre (sans prix) : lu dans le catalogue des plans enregistré. */
+export interface PlanOffer {
+  planLabel: string;
+  features: string[];
+}
+
+/** Offre la plus accessible qui inclut une fonctionnalité absente du compte. */
+export async function getPlanOffer(actor: Actor | null, feature: FeatureKey): Promise<PlanOffer | null> {
+  const { account } = await getProContext(actor);
+  if (hasFeature(account, feature)) return null;
+  const { directory } = await getAppRepositories();
+  const plan = (await directory.listPlans()).find((candidate) => candidate.features.includes(feature));
+  if (!plan) return null;
+  return { planLabel: plan.name, features: plan.features.map((key) => FEATURE_LABELS[key]) };
 }

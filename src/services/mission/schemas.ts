@@ -37,7 +37,10 @@ export const saveMissionInputSchema = z.object({
   selections: simulationSelectionsSchema,
   customer: customerInputSchema,
   vehicle: vehicleDetailsSchema,
+  /** Consignes visibles du convoyeur. */
   notes: optionalText(1000),
+  /** Note interne Naera, jamais exposée hors back-office. */
+  internalNotes: optionalText(1000),
 });
 
 export type SaveMissionInput = z.input<typeof saveMissionInputSchema>;

@@ -1,7 +1,7 @@
 import type { BusinessMember, DriverProfile, PersonalCustomer, UserAccount } from "@/core/accounts/types";
 import type {
   ContactPerson,
-  CustomerInfo,
+  CustomerSnapshot,
   MissionOwnership,
   MissionProgress,
   MissionStatus,
@@ -19,7 +19,7 @@ import type { DirectorySeed } from "@/repositories/types";
  * dates calculées par rapport à aujourd'hui. Incrémenter la version force
  * la réinjection (les missions réelles ne sont jamais touchées).
  */
-export const DEMO_DATASET_VERSION = 2;
+export const DEMO_DATASET_VERSION = 3;
 
 const uuid = (group: number, n: number) => `d${group}000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
@@ -248,14 +248,17 @@ export function buildDemoDirectory(): DirectorySeed {
 
 export interface DemoMissionSeed {
   request: MissionRequest;
-  customer: CustomerInfo;
+  customer: CustomerSnapshot;
   vehicle: Pick<VehicleInfo, "make" | "model" | "plate">;
   status: MissionStatus;
   progress: MissionProgress;
   ownership: MissionOwnership;
   driverProfileId: string | null;
   contacts: { pickup: ContactPerson | null; dropoff: ContactPerson | null };
+  /** Consignes (visibles du convoyeur et du client). */
   notes?: string;
+  /** Note interne Naera. */
+  internalNotes?: string;
 }
 
 type Vehicle = MissionRequest["vehicle"];
@@ -306,7 +309,7 @@ function request(leg: Leg, date: string, time: string, vehicle: Vehicle, optionI
   } satisfies MissionRequest;
 }
 
-const GARAGE_MARTIN_CUSTOMER: CustomerInfo = {
+const GARAGE_MARTIN_CUSTOMER: CustomerSnapshot = {
   type: "PROFESSIONAL",
   companyName: "Garage Martin",
   phone: "03 20 55 12 40",
@@ -469,6 +472,8 @@ export function buildDemoMissions(now: Date): DemoMissionSeed[] {
       driverProfileId: D.marc,
       contacts: { pickup: ATELIER, dropoff: { name: "Accueil Grande Armée Automobiles", phone: "01 45 00 12 12" } },
       notes: "Véhicule vendu, livraison au nouveau propriétaire.",
+      // Note interne témoin : les tests vérifient qu'elle n'apparaît jamais hors back-office.
+      internalNotes: "Marge serrée sur ce trajet : valider toute attente avec l'exploitation.",
     },
     {
       request: request(LEGS.lilleArras, today, startedTime(40), V.vanDiesel, ["PHOTO_REPORT"]),
@@ -532,7 +537,11 @@ export function buildDemoMissions(now: Date): DemoMissionSeed[] {
       createdByUserId: U.locautoOwner,
       customerReference,
     });
-  const locautoCustomer: CustomerInfo = { type: "PROFESSIONAL", companyName: "Loc'Auto Nord", phone: "03 20 90 00 00" };
+  const locautoCustomer: CustomerSnapshot = {
+    type: "PROFESSIONAL",
+    companyName: "Loc'Auto Nord",
+    phone: "03 20 90 00 00",
+  };
   const locautoCompleted = day(-2);
   seeds.push(
     {
@@ -593,7 +602,7 @@ export function buildDemoMissions(now: Date): DemoMissionSeed[] {
 
   // Sophie Durand — particulier : une commande en cours, une commande passée.
   const sophie = ownership({ channel: "CLIENT_PORTAL", personalCustomerId: C.sophie, createdByUserId: U.sophie });
-  const sophieCustomer: CustomerInfo = {
+  const sophieCustomer: CustomerSnapshot = {
     type: "INDIVIDUAL",
     firstName: "Sophie",
     lastName: "Durand",
@@ -674,7 +683,7 @@ export function buildDemoMissions(now: Date): DemoMissionSeed[] {
       ownership: ownership({ channel: "BACKOFFICE", personalCustomerId: C.lucas, createdByUserId: U.dispatcher }),
       driverProfileId: null,
       contacts: { pickup: null, dropoff: null },
-      notes: "Client flexible sur l'horaire de livraison.",
+      internalNotes: "Client flexible sur l'horaire de livraison.",
     },
     {
       request: request(
@@ -709,7 +718,7 @@ export function buildDemoMissions(now: Date): DemoMissionSeed[] {
       ownership: ownership({ channel: "BACKOFFICE", createdByUserId: U.dispatcher }),
       driverProfileId: null,
       contacts: { pickup: null, dropoff: null },
-      notes: "Annulée par le client (véhicule vendu sur place).",
+      internalNotes: "Annulée par le client (véhicule vendu sur place).",
     },
   );
 

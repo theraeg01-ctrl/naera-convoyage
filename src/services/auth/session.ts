@@ -4,11 +4,13 @@ import { cache } from "react";
 import { contextRefOf, type Actor } from "@/core/access/actor";
 import { serverConfig } from "../config";
 import { getAppRepositories } from "../container";
+import { logTechnicalError } from "../logger";
 import {
   contextKey,
   createSessionToken,
   parseContextKey,
   readSessionToken,
+  SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
 } from "./session-token";
 
@@ -24,16 +26,33 @@ import {
  * un membre désactivé ou retiré d'une entreprise perd l'accès immédiatement.
  */
 
-export const SESSION_COOKIE = "naera_session";
+export { SESSION_COOKIE };
+
+const globalForWarning = globalThis as unknown as { naeraDemoAuthWarned?: boolean };
+
+/**
+ * Secret de session si la connexion de démonstration est autorisée, sinon
+ * null (voir resolveDemoAuth : jamais active en production sans
+ * NAERA_DEMO_AUTH="true" explicite).
+ */
+function demoSessionSecret(): string | null {
+  const { enabled, secret } = serverConfig.demoAuth;
+  if (!enabled || !secret) return null;
+  if (process.env.NODE_ENV === "production" && !globalForWarning.naeraDemoAuthWarned) {
+    globalForWarning.naeraDemoAuthWarned = true;
+    logTechnicalError("Sécurité", new Error("Connexion de démonstration ACTIVE en production (NAERA_DEMO_AUTH=true)"));
+  }
+  return secret;
+}
 
 export function isDemoAuthEnabled(): boolean {
-  return serverConfig.demoAuthEnabled && Boolean(serverConfig.sessionSecret);
+  return demoSessionSecret() !== null;
 }
 
 /** Acteur de la requête courante (mémoïsé le temps du rendu), ou null. */
 export const getActor = cache(async (): Promise<Actor | null> => {
-  const secret = serverConfig.sessionSecret;
-  if (!isDemoAuthEnabled() || !secret) return null;
+  const secret = demoSessionSecret();
+  if (!secret) return null;
   const store = await cookies();
   const payload = readSessionToken(store.get(SESSION_COOKIE)?.value, secret);
   if (!payload) return null;
@@ -56,8 +75,8 @@ export async function listDemoPersonas(): Promise<DemoPersona[]> {
 
 /** Ouvre une session de démonstration ; le profil est revérifié dans l'annuaire. */
 export async function startDemoSession(personaKey: string): Promise<Actor | null> {
-  const secret = serverConfig.sessionSecret;
-  if (!isDemoAuthEnabled() || !secret) return null;
+  const secret = demoSessionSecret();
+  if (!secret) return null;
   const [userId, key] = personaKey.split("|");
   const context = key ? parseContextKey(key) : null;
   if (!userId || !context) return null;

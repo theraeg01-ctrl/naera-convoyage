@@ -18,7 +18,10 @@ export interface SaveDetails {
     email: string;
   } | null;
   vehicle: { make: string; model: string; plate: string };
+  /** Consignes visibles du convoyeur. */
   notes: string;
+  /** Note interne Naera (jamais visible hors back-office). */
+  internalNotes: string;
 }
 
 interface SaveMissionSheetProps {
@@ -42,6 +45,7 @@ export function SaveMissionSheet({ open, onClose, onSave, pending, error }: Save
     model: "",
     plate: "",
     notes: "",
+    internalNotes: "",
   });
   const set = (key: keyof typeof values) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setValues({ ...values, [key]: event.target.value });
@@ -64,6 +68,7 @@ export function SaveMissionSheet({ open, onClose, onSave, pending, error }: Save
         : null,
       vehicle: { make: values.make, model: values.model, plate: values.plate.toUpperCase() },
       notes: values.notes,
+      internalNotes: values.internalNotes,
     });
   };
 
@@ -158,8 +163,15 @@ export function SaveMissionSheet({ open, onClose, onSave, pending, error }: Save
           </Field>
         </fieldset>
 
-        <Field label="Notes" htmlFor="notes">
-          <Textarea id="notes" rows={3} value={values.notes} onChange={set("notes")} />
+        <Field label="Consignes pour le convoyeur" htmlFor="notes" hint="Visibles du convoyeur (accès, clés…)">
+          <Textarea id="notes" rows={2} value={values.notes} onChange={set("notes")} />
+        </Field>
+        <Field
+          label="Note interne"
+          htmlFor="internal-notes"
+          hint="Naera uniquement : jamais visible du client ni du convoyeur"
+        >
+          <Textarea id="internal-notes" rows={2} value={values.internalNotes} onChange={set("internalNotes")} />
         </Field>
 
         {error ? (

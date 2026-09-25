@@ -1,11 +1,20 @@
 import type { ReactNode } from "react";
-import { PORTAL_LABELS, type Actor, type Portal } from "@/core/access/actor";
+import { PORTAL_HOME, PORTAL_LABELS, type Actor, type Portal } from "@/core/access/actor";
 import { BUSINESS_ROLE_LABELS, STAFF_ROLE_LABELS } from "@/core/accounts/types";
 import { buildNavigation } from "@/core/navigation/portal-navigation";
 import { requirePortal } from "@/services/auth/guards";
 import { getProContext } from "@/services/portals/pro-portal";
 import { PortalBottomNav, PortalSidebar, type PortalIdentity } from "./navigation";
 import { PageContainer } from "./page-container";
+import { PortalTopBar } from "./portal-topbar";
+
+/** Nom court de l'espace (barre mobile). */
+const PORTAL_SHORT_LABELS: Record<Portal, string> = {
+  admin: "Back-office",
+  pro: "Espace pro",
+  client: "Espace client",
+  driver: "Convoyeur",
+};
 
 function describeActor(actor: Actor): string {
   switch (actor.kind) {
@@ -40,7 +49,10 @@ export async function PortalLayout({ portal, children }: { portal: Portal; child
     <div className="flex min-h-dvh">
       <PortalSidebar items={items} identity={identity} />
       <div className="min-w-0 flex-1">
-        <PageContainer>{children}</PageContainer>
+        <PageContainer>
+          <PortalTopBar home={PORTAL_HOME[portal]} label={PORTAL_SHORT_LABELS[portal]} />
+          {children}
+        </PageContainer>
       </div>
       <PortalBottomNav items={items} identity={identity} />
     </div>

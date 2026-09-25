@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveDemoAuth } from "./auth/demo-auth";
 
 /**
  * Lecture centralisée des variables d'environnement côté serveur.
@@ -31,21 +32,13 @@ export const serverConfig = {
   get localDataDir() {
     return readEnv("LOCAL_DATA_DIR");
   },
-  /**
-   * Connexion de démonstration (choix d'un profil sans mot de passe).
-   * Active par défaut hors production ; en production, uniquement si
-   * NAERA_DEMO_AUTH=true est explicitement défini.
-   */
-  get demoAuthEnabled() {
-    const flag = readEnv("NAERA_DEMO_AUTH");
-    if (flag !== undefined) return flag === "true";
-    return process.env.NODE_ENV !== "production";
-  },
-  /** Secret de signature des sessions (obligatoire en production). */
-  get sessionSecret() {
-    const secret = readEnv("NAERA_SESSION_SECRET");
-    if (secret) return secret;
-    return process.env.NODE_ENV === "production" ? undefined : "naera-dev-only-session-secret";
+  /** Connexion de démonstration : voir resolveDemoAuth (désactivée par défaut en production). */
+  get demoAuth() {
+    return resolveDemoAuth({
+      nodeEnv: process.env.NODE_ENV,
+      flag: readEnv("NAERA_DEMO_AUTH"),
+      secret: readEnv("NAERA_SESSION_SECRET"),
+    });
   },
 };
 

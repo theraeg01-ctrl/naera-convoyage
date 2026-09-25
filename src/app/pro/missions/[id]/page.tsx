@@ -25,6 +25,7 @@ export default async function ProMissionPage(props: PageProps<"/pro/missions/[id
       today={todayInZone()}
       backHref="/pro/missions"
       backLabel="Missions"
+      priceTitle="Montant facturé"
       justCreated={searchParams.nouvelle === "1"}
       duplicateHref={detail.canDuplicate ? `/pro/missions/new?from=${mission.id}` : undefined}
       meta={

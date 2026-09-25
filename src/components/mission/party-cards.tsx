@@ -5,12 +5,12 @@ import {
   VEHICLE_CATEGORY_LABELS,
   customerDisplayName,
   vehicleDisplayName,
-  type CustomerInfo,
+  type CustomerSnapshot,
   type VehicleInfo,
 } from "@/core/mission/types";
 import { Card } from "@/components/ui/card";
 
-export function CustomerCard({ customer }: { customer: CustomerInfo | null }) {
+export function CustomerCard({ customer }: { customer: CustomerSnapshot | null }) {
   const Icon = customer?.type === "PROFESSIONAL" ? Building2 : User;
   return (
     <Card className="p-4">

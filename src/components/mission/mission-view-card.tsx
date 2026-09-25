@@ -1,5 +1,5 @@
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { LinkChevron } from "@/components/ui/link-pending";
 import type { ReactNode } from "react";
 import type { MissionStatus } from "@/core/mission/types";
 import { formatMissionDay } from "@/utils/dates";
@@ -56,7 +56,7 @@ export function MissionViewCard(props: MissionViewCardProps) {
             {props.amountHint ? <p className="text-xs text-faint">{props.amountHint}</p> : null}
           </div>
         ) : null}
-        <ChevronRight className="size-5 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
+        <LinkChevron />
       </div>
     </Link>
   );

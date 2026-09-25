@@ -2,6 +2,7 @@ import "server-only";
 import { forbidden, notFound, unauthorized } from "next/navigation";
 import { portalOf, type Actor, type Portal } from "@/core/access/actor";
 import { AccessDeniedError, can, type Permission } from "@/core/access/permissions";
+import { hasFeature, type Entitlements, type FeatureKey } from "@/core/plans/features";
 import { getActor } from "./session";
 
 /**
@@ -40,4 +41,9 @@ export async function withAccess<T>(load: () => Promise<T>): Promise<T> {
   if (denied.reason === "UNAUTHENTICATED") unauthorized();
   if (denied.reason === "NOT_FOUND") notFound();
   forbidden();
+}
+
+/** Fonctionnalité non incluse dans l'offre du compte : 403 (jamais un simple masquage). */
+export function requireFeature(account: { entitlements: Entitlements }, feature: FeatureKey): void {
+  if (!hasFeature(account, feature)) forbidden();
 }

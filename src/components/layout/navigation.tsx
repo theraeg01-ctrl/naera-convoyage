@@ -26,6 +26,7 @@ import { signOutAction } from "@/actions/session";
 import { Logo } from "@/components/brand/logo";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { buttonVariants } from "@/components/ui/button";
+import { LinkPendingBar } from "@/components/ui/link-pending";
 import { activeNavItem, type NavIcon, type NavItem } from "@/core/navigation/portal-navigation";
 import { cn } from "@/utils/cn";
 import { ThemeToggle } from "./theme";
@@ -147,7 +148,8 @@ export function PortalSidebar({ items, identity }: { items: NavItem[]; identity:
                 )}
               >
                 <Icon className="size-5" aria-hidden />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                <LinkPendingBar />
               </Link>
             );
           })}
@@ -191,7 +193,8 @@ export function PortalBottomNav({ items, identity }: { items: NavItem[]; identit
         )}
       >
         <Icon className="size-[22px]" strokeWidth={current ? 2.4 : 2} aria-hidden />
-        <span className="max-w-full truncate px-1">{item.label}</span>
+        <span className="max-w-full truncate px-1">{item.shortLabel ?? item.label}</span>
+        <LinkPendingBar className="-mt-0.5" />
       </Link>
     );
   };

@@ -1,5 +1,5 @@
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { LinkChevron } from "@/components/ui/link-pending";
 import { customerDisplayName, placeShortName, type Mission } from "@/core/mission/types";
 import { formatEuro } from "@/core/shared/format";
 import { formatMissionDay } from "@/utils/dates";
@@ -34,7 +34,7 @@ export function MissionCard({
         <p className="truncate text-[17px] font-semibold tracking-tight">
           {placeShortName(mission.pickup)} <span className="text-faint">→</span> {placeShortName(mission.dropoff)}
         </p>
-        <p className="truncate text-sm text-muted">{customerDisplayName(mission.customer)}</p>
+        <p className="truncate text-sm text-muted">{customerDisplayName(mission.customerSnapshot)}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-0.5">
           <StatusBadge status={mission.status} />
           <span className="text-sm text-muted tabular">
@@ -47,7 +47,7 @@ export function MissionCard({
           <p className="text-[17px] font-semibold">{formatEuro(mission.pricing.totals.ht)}</p>
           <p className="text-xs text-faint">HT</p>
         </div>
-        <ChevronRight className="size-5 text-faint transition-transform group-hover:translate-x-0.5" aria-hidden />
+        <LinkChevron />
       </div>
     </Link>
   );

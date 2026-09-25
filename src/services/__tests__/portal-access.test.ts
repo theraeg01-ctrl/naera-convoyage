@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Actor } from "@/core/access/actor";
 import { AccessDeniedError } from "@/core/access/permissions";
 import { todayInZone } from "@/core/shared/timezone";
+import { findInternalFields } from "@/test/internal-fields";
 
 /**
  * Séparation des données de bout en bout, sur le vrai jeu de démonstration
@@ -148,14 +149,20 @@ describe("aucune donnée interne hors back-office", () => {
       await services.client.listClientMissions(sophie),
       await services.driver.listDriverMissions(marc),
     ];
-    const [firstPro] = (await services.pro.listProMissions(julien, { filter: "ALL" })).missions;
-    payloads.push((await services.pro.getProMission(julien, firstPro.id))!);
-    const [firstDriver] = (await services.driver.listDriverMissions(marc)).current;
-    payloads.push((await services.driver.getDriverMission(marc, firstDriver.id))!);
+    // Mission avec note interne témoin (« Marge serrée… ») : ni la clé ni le texte ne doivent sortir.
+    const withInternalNote = (await services.pro.listProMissions(julien, { filter: "IN_PROGRESS" })).missions.find(
+      (mission) => mission.driverFirstName === "Marc",
+    )!;
+    payloads.push((await services.pro.getProMission(julien, withInternalNote.id))!);
+    payloads.push((await services.driver.getDriverMission(marc, withInternalNote.id))!);
     for (const payload of payloads) {
+      expect(findInternalFields(payload)).toEqual([]);
       const json = JSON.stringify(payload);
       for (const marker of INTERNAL_MARKERS) expect(json).not.toContain(marker);
+      expect(json).not.toContain("Marge serrée");
     }
+    const staff = await services.admin.getAdminMission(find("Inès Moreau"), withInternalNote.id);
+    expect(staff?.mission.internalNotes).toContain("Marge serrée");
   });
 
   it("le devis client ne contient que des prix de vente", async () => {

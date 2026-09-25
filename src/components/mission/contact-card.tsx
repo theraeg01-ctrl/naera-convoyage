@@ -5,7 +5,7 @@ import type { ContactPerson } from "@/core/mission/types";
 /** Contact sur place (départ ou arrivée), appel en un geste. */
 export function ContactCard({ title, contact }: { title: string; contact: ContactPerson | null }) {
   return (
-    <Card className="flex items-center gap-3 p-4">
+    <Card className="flex min-w-0 items-center gap-3 p-4">
       <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-muted">
         <UserRound className="size-5" aria-hidden />
       </span>

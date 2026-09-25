@@ -105,9 +105,9 @@ export default async function DriverMissionPage(props: PageProps<"/driver/missio
           </Card>
         </Section>
 
-        {mission.notes ? (
+        {mission.instructions ? (
           <Section title="Consignes" icon={<StickyNote className="size-3.5" aria-hidden />}>
-            <Card className="p-5 text-[15px] whitespace-pre-line">{mission.notes}</Card>
+            <Card className="p-5 text-[15px] whitespace-pre-line">{mission.instructions}</Card>
           </Section>
         ) : null}
 

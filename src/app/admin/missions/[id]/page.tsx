@@ -153,7 +153,7 @@ export default async function AdminMissionDetailPage(props: PageProps<"/admin/mi
 
         <div className="grid gap-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-1 xl:grid-cols-2">
           <Section title="Client">
-            <CustomerCard customer={mission.customer} />
+            <CustomerCard customer={mission.customerSnapshot} />
           </Section>
           <Section title="Véhicule">
             <VehicleCard vehicle={mission.vehicle} />
@@ -183,9 +183,22 @@ export default async function AdminMissionDetailPage(props: PageProps<"/admin/mi
           </Section>
         </aside>
 
-        {mission.notes ? (
+        {mission.notes || mission.internalNotes ? (
           <Section title="Notes" icon={<StickyNote className="size-3.5" aria-hidden />}>
-            <Card className="p-5 text-[15px] whitespace-pre-line">{mission.notes}</Card>
+            <Card className="divide-y divide-border px-5">
+              {mission.notes ? (
+                <div className="py-3.5">
+                  <p className="text-sm text-faint">Consignes (visibles du convoyeur et du client)</p>
+                  <p className="mt-1 text-[15px] whitespace-pre-line">{mission.notes}</p>
+                </div>
+              ) : null}
+              {mission.internalNotes ? (
+                <div className="py-3.5">
+                  <p className="text-sm text-faint">Note interne Naera</p>
+                  <p className="mt-1 text-[15px] whitespace-pre-line">{mission.internalNotes}</p>
+                </div>
+              ) : null}
+            </Card>
           </Section>
         ) : null}
 

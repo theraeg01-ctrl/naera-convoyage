@@ -114,6 +114,7 @@ export function NewMissionFlow({ config }: { config: NewMissionConfig }) {
         customer: details.customer,
         vehicle: details.vehicle,
         notes: details.notes,
+        internalNotes: details.internalNotes,
       });
       if (!result.ok) {
         setSaveError(result.message);

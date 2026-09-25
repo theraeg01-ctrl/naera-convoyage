@@ -1,22 +1,22 @@
-import { ArrowRight, CalendarDays, Clock3, FileClock, Plus } from "lucide-react";
+import { ArrowRight, CircleCheck, Clock3, History, Plus, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { StatTile } from "@/components/dashboard/stat-tile";
 import { MissionViewCard, shortPlace } from "@/components/mission/mission-view-card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { Section } from "@/components/ui/card";
+import { Card, Section } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PlanDiscover } from "@/components/ui/plan-discover";
 import type { CustomerMissionView } from "@/core/access/projections";
 import { can } from "@/core/access/permissions";
 import { vehicleDisplayName } from "@/core/mission/types";
-import { PLAN_LABELS } from "@/core/plans/features";
+import { hasFeature, PLAN_LABELS } from "@/core/plans/features";
 import { formatEuro, formatKm } from "@/core/shared/format";
 import { todayInZone } from "@/core/shared/timezone";
 import { requirePortal, withAccess } from "@/services/auth/guards";
-import { getProContext, getProDashboard } from "@/services/portals/pro-portal";
-import { formatLongDay } from "@/utils/dates";
+import { getPlanOffer, getProContext, getProDashboard } from "@/services/portals/pro-portal";
+import { formatEventTime, formatLongDay } from "@/utils/dates";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -44,83 +44,131 @@ function MissionList({ missions, today }: { missions: CustomerMissionView[]; tod
   );
 }
 
+/**
+ * Dashboard professionnel : d'abord ce qui demande une action, puis ce qui
+ * est en cours, les dépenses du mois et l'activité récente. Pas de BI ici :
+ * l'analyse détaillée a son propre espace (selon l'offre).
+ */
 export default async function ProDashboardPage() {
   await connection();
   const actor = await requirePortal("pro");
   const [{ account }, data] = await withAccess(() => Promise.all([getProContext(actor), getProDashboard(actor)]));
+  const analyticsOffer =
+    can(actor, "analytics.read") && !hasFeature(account, "analytics_basic")
+      ? await withAccess(() => getPlanOffer(actor, "analytics_basic"))
+      : null;
   const today = todayInZone();
   const { kpis } = data;
   const planCode = account.entitlements.planCode;
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-semibold text-muted">{account.name}</p>
-          {planCode ? <Badge tone="outline">{PLAN_LABELS[planCode]}</Badge> : null}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-muted">{account.name}</p>
+            {planCode ? <Badge tone="outline">{PLAN_LABELS[planCode]}</Badge> : null}
+          </div>
+          <h1 className="text-[30px] leading-tight font-semibold tracking-tight">Bonjour {actor.name.split(" ")[0]}</h1>
+          <p className="text-[15px] text-muted first-letter:uppercase">{formatLongDay(today)}</p>
         </div>
-        <h1 className="text-[34px] leading-tight font-semibold tracking-tight">Bonjour {actor.name.split(" ")[0]},</h1>
-        <p className="text-[15px] text-muted first-letter:uppercase">{formatLongDay(today)}</p>
+        {can(actor, "missions.create") ? (
+          <ButtonLink href="/pro/missions/new" className="hidden lg:inline-flex">
+            <Plus aria-hidden />
+            Nouvelle mission
+          </ButtonLink>
+        ) : null}
       </header>
 
-      {can(actor, "missions.create") ? (
-        <Link
-          href="/pro/missions/new"
-          className="bg-price group relative flex items-center gap-4 overflow-hidden rounded-[28px] p-5 text-price-fg shadow-float transition-transform active:scale-[0.99]"
-        >
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">
-            <Plus className="size-6" strokeWidth={2.4} aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-lg font-semibold">Nouvelle mission</span>
-            <span className="block text-sm text-price-muted">Tarif immédiat, commande en 1 minute</span>
-          </span>
-          <ArrowRight className="size-5 text-price-muted transition-transform group-hover:translate-x-1" aria-hidden />
-        </Link>
-      ) : null}
-
-      <section aria-label="Indicateurs" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <StatTile label="Missions du jour" value={kpis.missionsToday} />
-        <StatTile label="En cours" value={kpis.inProgress} />
-        <StatTile
-          label="Terminées ce mois"
-          value={kpis.completedThisMonth}
-          hint={`${kpis.missionsThisMonth} missions ce mois`}
-        />
-        <StatTile
-          label="À confirmer"
-          value={kpis.toConfirm}
-          hint={kpis.toConfirm > 0 ? "Devis en attente" : undefined}
-        />
-        <StatTile label="Dépenses du mois" value={formatEuro(kpis.spendThisMonthHT)} hint="HT" />
-        <StatTile label="Km convoyés ce mois" value={formatKm(kpis.convoyedKmThisMonth)} />
-      </section>
-
-      {data.toConfirm.length > 0 ? (
-        <Section title="À confirmer" icon={<FileClock className="size-3.5" aria-hidden />}>
-          <MissionList missions={data.toConfirm} today={today} />
-        </Section>
-      ) : null}
-
-      <Section title="En cours" icon={<Clock3 className="size-3.5" aria-hidden />}>
-        {data.inProgress.length > 0 ? (
-          <MissionList missions={data.inProgress} today={today} />
+      <Section title="À traiter" icon={<CircleCheck className="size-3.5" aria-hidden />}>
+        {data.toConfirm.length > 0 ? (
+          <>
+            <p className="px-1 text-sm text-muted">
+              {data.toConfirm.length === 1 ? "Un devis attend" : `${data.toConfirm.length} devis attendent`} votre
+              confirmation.
+            </p>
+            <MissionList missions={data.toConfirm} today={today} />
+          </>
         ) : (
-          <EmptyState title="Aucune mission en cours" description="Les convoyages démarrés apparaîtront ici." />
+          <Card className="px-5 py-4 text-[15px] text-muted">Aucune action en attente.</Card>
         )}
       </Section>
 
       <Section
-        title="Dernières livrées"
-        icon={<CalendarDays className="size-3.5" aria-hidden />}
+        title={`En cours${data.inProgress.length > 0 ? ` · ${data.inProgress.length}` : ""}`}
+        icon={<Clock3 className="size-3.5" aria-hidden />}
+      >
+        {data.inProgress.length > 0 ? (
+          <MissionList missions={data.inProgress} today={today} />
+        ) : (
+          <EmptyState title="Aucune mission en cours" description="Les convoyages démarrés apparaissent ici." />
+        )}
+      </Section>
+
+      <Section
+        title="Dépenses du mois"
+        icon={<Wallet className="size-3.5" aria-hidden />}
         action={
-          <ButtonLink href="/pro/missions" variant="ghost" size="sm" className="-mr-2">
-            Tout voir
-            <ArrowRight aria-hidden />
-          </ButtonLink>
+          can(actor, "billing.read") ? (
+            <ButtonLink href="/pro/billing" variant="ghost" size="sm" className="-mr-2">
+              Facturation
+              <ArrowRight aria-hidden />
+            </ButtonLink>
+          ) : null
         }
       >
-        <MissionList missions={data.recent} today={today} />
+        <Card className="p-5">
+          <p className="text-[32px] leading-none font-semibold tracking-tight">
+            {formatEuro(kpis.spendThisMonthHT)} <span className="text-base font-medium text-muted">HT</span>
+          </p>
+          <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-sm">
+            <div>
+              <dt className="text-faint">Missions</dt>
+              <dd className="text-[17px] font-semibold tabular">{kpis.missionsThisMonth}</dd>
+            </div>
+            <div>
+              <dt className="text-faint">Livrées</dt>
+              <dd className="text-[17px] font-semibold tabular">{kpis.completedThisMonth}</dd>
+            </div>
+            <div>
+              <dt className="text-faint">Convoyés</dt>
+              <dd className="text-[17px] font-semibold tabular">{formatKm(kpis.convoyedKmThisMonth)}</dd>
+            </div>
+          </dl>
+        </Card>
+        {analyticsOffer ? (
+          <PlanDiscover
+            title="Analyse des dépenses"
+            planLabel={analyticsOffer.planLabel}
+            features={analyticsOffer.features}
+          />
+        ) : null}
+      </Section>
+
+      <Section title="Activité récente" icon={<History className="size-3.5" aria-hidden />}>
+        {data.activity.length > 0 ? (
+          <Card className="divide-y divide-border px-5">
+            {data.activity.map((item) => (
+              <Link
+                key={item.id}
+                href={`/pro/missions/${item.missionId}`}
+                className="flex items-center justify-between gap-3 py-3 hover:opacity-80"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-medium">{item.label}</span>
+                  <span className="block truncate text-sm text-muted">
+                    <span className="font-mono text-xs">{item.reference}</span> · {item.route}
+                  </span>
+                </span>
+                <time dateTime={item.at} className="shrink-0 text-sm text-faint tabular">
+                  {formatEventTime(item.at)}
+                </time>
+              </Link>
+            ))}
+          </Card>
+        ) : (
+          <EmptyState title="Pas encore d'activité" />
+        )}
       </Section>
     </div>
   );

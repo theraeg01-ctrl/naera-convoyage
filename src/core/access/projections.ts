@@ -3,7 +3,7 @@ import type {
   MissionStatus,
   VehicleInfo,
   ContactPerson,
-  CustomerInfo,
+  CustomerSnapshot,
   Mission,
 } from "../mission/types";
 import { customerDisplayName } from "../mission/types";
@@ -37,11 +37,14 @@ export interface CustomerMissionView {
   dropoff: PlaceSummary;
   route: { distanceKm: number; durationMin: number };
   vehicle: VehicleInfo;
-  contact: CustomerInfo | null;
+  /** Contact figé au moment de la commande (le client voit ce qu'il a transmis). */
+  customerSnapshot: CustomerSnapshot | null;
   customerReference: string | null;
   createdByUserId: string | null;
   /** Contacts sur place saisis à la commande. */
   contacts: { pickup: ContactPerson | null; dropoff: ContactPerson | null };
+  /** Consignes transmises à la commande (jamais les notes internes Naera). */
+  instructions: string | null;
   /** Prestation facturée : lignes et totaux client uniquement. */
   lines: PriceLine[];
   totals: VatBreakdown;
@@ -93,13 +96,14 @@ export function toCustomerMissionView(mission: Mission): CustomerMissionView {
     dropoff: placeSummary(mission.dropoff),
     route: { distanceKm: mission.route.distanceKm, durationMin: mission.route.trafficDurationMin },
     vehicle: { ...mission.vehicle },
-    contact: mission.customer ? { ...mission.customer } : null,
+    customerSnapshot: mission.customerSnapshot ? { ...mission.customerSnapshot } : null,
     customerReference: mission.ownership.customerReference,
     createdByUserId: mission.ownership.createdByUserId,
     contacts: {
       pickup: mission.contacts.pickup ? { ...mission.contacts.pickup } : null,
       dropoff: mission.contacts.dropoff ? { ...mission.contacts.dropoff } : null,
     },
+    instructions: mission.notes,
     lines: copyLines(mission.pricing.lines),
     totals: { ht: totals.ht, vatPercent: totals.vatPercent, vat: totals.vat, ttc: totals.ttc },
     progress: { ...mission.progress },
@@ -148,7 +152,8 @@ export interface DriverMissionView {
   accessLeg: DriverLegView | null;
   returnLeg: DriverLegView | null;
   progress: MissionProgress;
-  notes: string | null;
+  /** Consignes opérationnelles (jamais les notes internes Naera). */
+  instructions: string | null;
 }
 
 export function toDriverMissionView(mission: Mission): DriverMissionView {
@@ -174,10 +179,10 @@ export function toDriverMissionView(mission: Mission): DriverMissionView {
       summary: mission.route.summary,
     },
     vehicle: { ...mission.vehicle },
-    customerName: customerDisplayName(mission.customer),
+    customerName: customerDisplayName(mission.customerSnapshot),
     accessLeg: driverLeg(mission.accessLeg),
     returnLeg: driverLeg(mission.returnLeg),
     progress: { ...mission.progress },
-    notes: mission.notes,
+    instructions: mission.notes,
   };
 }

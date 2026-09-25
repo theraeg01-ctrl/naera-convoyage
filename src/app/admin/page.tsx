@@ -1,7 +1,6 @@
-import { ArrowRight, CalendarDays, Clock3, FileClock, Plus } from "lucide-react";
+import { ArrowRight, CalendarDays, Clock3, FileClock, Plus, Truck } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
-import { LogoMark } from "@/components/brand/logo";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { MissionCard } from "@/components/mission/mission-card";
 import { ButtonLink } from "@/components/ui/button";
@@ -30,20 +29,23 @@ export default async function AdminDashboardPage() {
   const recent = [...missions]
     .filter((mission) => !todays.includes(mission))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.reference.localeCompare(a.reference))
-    .slice(0, 3);
+    .slice(0, 8);
   const pending = sortMissionsBySchedule(
     missions.filter((mission) => mission.status === "DRAFT" || mission.status === "QUOTED"),
     "asc",
   );
+  // Pilotage : missions confirmées qui n'ont pas encore de convoyeur.
+  const unassigned = sortMissionsBySchedule(
+    missions.filter((mission) => mission.status === "CONFIRMED" && !mission.assignment),
+    "asc",
+  );
+  const listed = new Set([...todays, ...pending, ...unassigned].map((mission) => mission.id));
+  const recentOthers = recent.filter((mission) => !listed.has(mission.id)).slice(0, 3);
   const month = monthFormatter.format(new Date(`${today}T00:00:00Z`));
 
   return (
     <div className="space-y-8">
-      <header className="space-y-5">
-        <div className="flex items-center gap-2 lg:hidden">
-          <LogoMark className="size-7" />
-          <span className="text-[13px] font-bold tracking-[0.26em]">NAERA</span>
-        </div>
+      <header>
         <div>
           <h1 className="text-[34px] leading-tight font-semibold tracking-tight">
             Bonjour {actor.name.split(" ")[0]},
@@ -70,6 +72,51 @@ export default async function AdminDashboardPage() {
         <ArrowRight className="size-5 text-price-muted transition-transform group-hover:translate-x-1" aria-hidden />
       </Link>
 
+      <Section title={`Ce mois-ci · ${month}`}>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile
+            label="Chiffre d'affaires"
+            value={formatEuro(Math.round(kpis.revenueHT))}
+            hint="HT, missions confirmées"
+          />
+          <StatTile
+            label="Marge moyenne"
+            value={kpis.averageMarginRate === null ? "—" : formatPercent(kpis.averageMarginRate)}
+            hint={
+              kpis.averageMarginAmount === null
+                ? undefined
+                : `${formatEuro(Math.round(kpis.averageMarginAmount))} par mission`
+            }
+          />
+          <StatTile label="Missions" value={kpis.missionCount} hint="hors annulations" />
+          <StatTile label="Kilomètres convoyés" value={formatKm(kpis.convoyedKm)} hint="missions livrées" />
+        </div>
+      </Section>
+
+      <Section title="Sans convoyeur" icon={<Truck className="size-3.5" aria-hidden />}>
+        {unassigned.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {unassigned.map((mission) => (
+              <MissionCard key={mission.id} mission={mission} today={today} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="Toutes les missions confirmées ont un convoyeur" />
+        )}
+      </Section>
+
+      <Section title="Devis en attente" icon={<FileClock className="size-3.5" aria-hidden />}>
+        {pending.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {pending.map((mission) => (
+              <MissionCard key={mission.id} mission={mission} today={today} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="Aucun devis en attente" />
+        )}
+      </Section>
+
       <Section title="Missions du jour" icon={<CalendarDays className="size-3.5" aria-hidden />}>
         {todays.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -94,48 +141,15 @@ export default async function AdminDashboardPage() {
           </ButtonLink>
         }
       >
-        {recent.length > 0 ? (
+        {recentOthers.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
-            {recent.map((mission) => (
+            {recentOthers.map((mission) => (
               <MissionCard key={mission.id} mission={mission} today={today} />
             ))}
           </div>
         ) : (
           <EmptyState title="Pas encore de mission" description="Crée ta première estimation en quelques secondes." />
         )}
-      </Section>
-
-      <Section title="Devis en attente" icon={<FileClock className="size-3.5" aria-hidden />}>
-        {pending.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {pending.map((mission) => (
-              <MissionCard key={mission.id} mission={mission} today={today} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="Aucun devis en attente" />
-        )}
-      </Section>
-
-      <Section title={`Ce mois-ci · ${month}`}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatTile
-            label="Chiffre d'affaires"
-            value={formatEuro(Math.round(kpis.revenueHT))}
-            hint="HT, missions confirmées"
-          />
-          <StatTile
-            label="Marge moyenne"
-            value={kpis.averageMarginRate === null ? "—" : formatPercent(kpis.averageMarginRate)}
-            hint={
-              kpis.averageMarginAmount === null
-                ? undefined
-                : `${formatEuro(Math.round(kpis.averageMarginAmount))} par mission`
-            }
-          />
-          <StatTile label="Missions" value={kpis.missionCount} hint="hors annulations" />
-          <StatTile label="Kilomètres convoyés" value={formatKm(kpis.convoyedKm)} hint="missions livrées" />
-        </div>
       </Section>
     </div>
   );

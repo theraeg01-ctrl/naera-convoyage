@@ -5,11 +5,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, Section } from "@/components/ui/card";
-import { LockedFeature } from "@/components/ui/locked-feature";
 import { can } from "@/core/access/permissions";
 import { BUSINESS_ROLE_DESCRIPTIONS, BUSINESS_ROLE_LABELS, BUSINESS_ROLES } from "@/core/accounts/types";
-import { hasFeature, lowestPlanWith, PLAN_LABELS } from "@/core/plans/features";
-import { requirePermission, requirePortal, withAccess } from "@/services/auth/guards";
+import { requireFeature, requirePermission, requirePortal, withAccess } from "@/services/auth/guards";
 import { getProContext, getProTeam } from "@/services/portals/pro-portal";
 
 export const metadata: Metadata = { title: "Équipe" };
@@ -20,26 +18,14 @@ export default async function ProTeamPage() {
   requirePermission(actor, "team.read");
   const { account } = await withAccess(() => getProContext(actor));
 
-  if (!hasFeature(account, "team_management")) {
-    const plan = lowestPlanWith("team_management");
-    return (
-      <div>
-        <PageHeader title="Équipe" />
-        <LockedFeature
-          title="Gestion d'équipe non incluse"
-          description="Invitez vos collaborateurs et attribuez-leur un rôle : responsable, opérateur, facturation."
-          planLabel={plan ? PLAN_LABELS[plan] : null}
-        />
-      </div>
-    );
-  }
+  requireFeature(account, "team_management");
 
   const members = await withAccess(() => getProTeam(actor));
   return (
     <div className="space-y-8">
       <PageHeader
         title="Équipe"
-        description={`${account.memberCount} membre${account.memberCount > 1 ? "s" : ""} actif${account.memberCount > 1 ? "s" : ""} · ${account.name}`}
+        description={`${members.length} membre${members.length > 1 ? "s" : ""} · ${account.name}`}
         className="mb-0"
         actions={
           can(actor, "team.manage") ? (

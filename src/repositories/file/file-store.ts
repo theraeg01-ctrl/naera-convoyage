@@ -35,19 +35,33 @@ const EMPTY_STORE: LocalStoreData = {
   invoices: [],
 };
 
-/** Complète une mission enregistrée par une version antérieure (sans rattachement ni affectation). */
-function normalizeMission(mission: Mission): Mission {
+/** Forme enregistrée par les versions antérieures (champs renommés depuis). */
+type StoredMission = Mission & { customer?: Mission["customerSnapshot"] };
+
+/**
+ * Complète une mission enregistrée par une version antérieure : rattachement,
+ * affectation, snapshot client (ancien champ « customer ») et notes internes.
+ * Les notes saisies dans le back-office avant la séparation consignes / notes
+ * internes sont traitées comme internes (jamais exposées par défaut).
+ */
+function normalizeMission(stored: StoredMission): Mission {
+  const { customer, ...mission } = stored;
+  const legacyNotes = mission.internalNotes === undefined;
+  const backOffice = (mission.ownership?.channel ?? "BACKOFFICE") === "BACKOFFICE";
   return {
     ...mission,
+    customerSnapshot: mission.customerSnapshot ?? customer ?? null,
     ownership: mission.ownership ?? { ...DEFAULT_OWNERSHIP },
     assignment: mission.assignment ?? null,
     contacts: mission.contacts ?? { pickup: null, dropoff: null },
+    notes: legacyNotes && backOffice ? null : (mission.notes ?? null),
+    internalNotes: legacyNotes ? (backOffice ? (mission.notes ?? null) : null) : mission.internalNotes,
   };
 }
 
 /** Lit un fichier v1 (phase 0) ou v2 et le ramène au format courant. */
 function upgrade(raw: Record<string, unknown>): LocalStoreData {
-  const missions = ((raw.missions as Mission[] | undefined) ?? []).map(normalizeMission);
+  const missions = ((raw.missions as StoredMission[] | undefined) ?? []).map(normalizeMission);
   if (raw.version === 2) {
     const data = raw as unknown as LocalStoreData;
     return { ...EMPTY_STORE, ...data, missions, directory: { ...EMPTY_DIRECTORY, ...data.directory } };

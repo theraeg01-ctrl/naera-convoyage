@@ -99,6 +99,7 @@ class PrismaMissionRepository implements MissionRepository {
         data: {
           status: mission.status,
           notes: mission.notes,
+          internalNotes: mission.internalNotes,
           startedAt: date(mission.progress.startedAt),
           inspectedAt: date(mission.progress.inspectedAt),
           drivingAt: date(mission.progress.drivingAt),

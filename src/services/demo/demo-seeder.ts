@@ -112,7 +112,13 @@ export async function seedDemoDataset(repositories: Repositories, now: Date = ne
     created.push(
       await missions.createFromRequest(
         seed.request,
-        { customer: seed.customer, vehicle: seed.vehicle, contacts: seed.contacts, notes: seed.notes },
+        {
+          customerSnapshot: seed.customer,
+          vehicle: seed.vehicle,
+          contacts: seed.contacts,
+          notes: seed.notes,
+          internalNotes: seed.internalNotes,
+        },
         {
           status: seed.status,
           isDemo: true,

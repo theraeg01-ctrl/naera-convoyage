@@ -22,7 +22,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   csv_export: "Export CSV",
   pdf_reporting: "Rapports PDF",
   team_management: "Gestion d'équipe",
-  cost_centers: "Centres de coûts",
+  cost_centers: "Centres d'imputation",
   multi_agency: "Multi-agences",
   api_access: "Accès API",
 };

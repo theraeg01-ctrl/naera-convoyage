@@ -197,7 +197,7 @@ export function OrderFlow({ variant, basePath, options, initial, minDate, cancel
   const contactFields = (prefix: "pickup" | "dropoff", legend: string) => (
     <fieldset className="min-w-0 space-y-3">
       <legend className="mb-2 text-[15px] font-semibold">{legend}</legend>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Nom" htmlFor={`${prefix}-contact-name`}>
           <Input
             id={`${prefix}-contact-name`}
@@ -332,8 +332,8 @@ export function OrderFlow({ variant, basePath, options, initial, minDate, cancel
       <div className="space-y-6">
         {addressField("pickupAddress", "Départ")}
         {addressField("dropoffAddress", "Destination")}
-        {contactFields("pickup", "Contact au départ")}
-        {contactFields("dropoff", "Contact à l'arrivée")}
+        {contactFields("pickup", "Contact au départ (facultatif)")}
+        {contactFields("dropoff", "Contact à l'arrivée (facultatif)")}
       </div>
     ),
     vehicle: vehicleFields,

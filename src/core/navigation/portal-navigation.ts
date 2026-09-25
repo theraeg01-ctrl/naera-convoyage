@@ -22,6 +22,8 @@ export type NavIcon =
 export interface NavItem {
   id: string;
   label: string;
+  /** Libellé court de la barre d'onglets mobile (à défaut : label). */
+  shortLabel?: string;
   href: string;
   icon: NavIcon;
   /** Permission requise (rôle). */
@@ -46,7 +48,14 @@ export const PORTAL_NAVIGATION: Record<Portal, readonly NavItem[]> = {
       primary: true,
       permission: "missions.create",
     },
-    { id: "missions", label: "Mes convoyages", href: "/client/missions", icon: "missions", tab: true },
+    {
+      id: "missions",
+      label: "Mes convoyages",
+      shortLabel: "Convoyages",
+      href: "/client/missions",
+      icon: "missions",
+      tab: true,
+    },
     { id: "account", label: "Compte", href: "/client/account", icon: "account", tab: true },
   ],
   pro: [

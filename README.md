@@ -38,17 +38,18 @@ Aucune configuration n'est nécessaire : sans `DATABASE_URL`, l'application util
 
 ## Commandes
 
-| Commande                                 | Rôle                                                      |
-| ---------------------------------------- | --------------------------------------------------------- |
-| `npm run dev`                            | Serveur de développement (Turbopack)                      |
-| `npm run build` / `npm start`            | Build et serveur de production                            |
-| `npm run lint`                           | ESLint                                                    |
-| `npm run typecheck`                      | Génération des types de routes + `tsc --noEmit`           |
-| `npm test`                               | Tests unitaires (Vitest)                                  |
-| `npm run db:migrate`                     | Crée/applique les migrations en développement             |
-| `npm run db:deploy`                      | Applique les migrations en production                     |
-| `npm run db:seed`                        | Paramètres par défaut + jeu de démonstration (PostgreSQL) |
-| `node scripts/generate-brand-assets.mjs` | Régénère icônes PWA et écrans de lancement iOS            |
+| Commande                                 | Rôle                                                            |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `npm run dev`                            | Serveur de développement (Turbopack)                            |
+| `npm run build` / `npm start`            | Build et serveur de production                                  |
+| `npm run lint`                           | ESLint                                                          |
+| `npm run typecheck`                      | Génération des types de routes + `tsc --noEmit`                 |
+| `npm test`                               | Tests unitaires et d'intégration (Vitest)                       |
+| `npm run test:e2e`                       | Tests HTTP de bout en bout sur le build (après `npm run build`) |
+| `npm run db:migrate`                     | Crée/applique les migrations en développement                   |
+| `npm run db:deploy`                      | Applique les migrations en production                           |
+| `npm run db:seed`                        | Paramètres par défaut + jeu de démonstration (PostgreSQL)       |
+| `node scripts/generate-brand-assets.mjs` | Régénère icônes PWA et écrans de lancement iOS                  |
 
 ## Architecture
 
@@ -120,16 +121,18 @@ Toutes les routes exigent une session (401 sinon) et renvoient la **vue du porta
 | Particulier   | `/client` | client particulier                                | Accueil, Commander, Mes convoyages, Compte                                           |
 | Convoyeur     | `/driver` | convoyeur                                         | Missions (affectées uniquement), Compte                                              |
 
-\* selon le plan. Les anciennes adresses `/missions` et `/settings` redirigent vers `/admin`.
+\* selon l'offre : absent de la navigation et **403** côté serveur si l'offre ne l'inclut pas. Une fonctionnalité non
+incluse n'apparaît qu'en un endroit, sous forme d'encart sobre « Disponible avec … [Découvrir] » (sans prix). Les
+anciennes adresses `/missions` et `/settings` redirigent vers `/admin`.
 
 **Sécurité côté serveur (jamais seulement dans l'interface)**
 
 1. **Authentification** — `src/services/auth/session.ts` : cookie httpOnly signé (HMAC) contenant l'utilisateur et le
    contexte actif ; le contexte est **revérifié en base à chaque requête** (membre désactivé = accès coupé). La connexion
    de démonstration (choix d'un profil) sera remplacée par un fournisseur d'identité (OIDC, lien magique…) : seul ce
-   module change (`User.authSubject` est prévu).
+   module change (`User.authSubject` est prévu). Voir [Connexion de démonstration](#connexion-de-démonstration).
 2. **Autorisation** — `src/core/access/permissions.ts` (matrice rôle → permissions) appliquée par les gardes des pages
-   (`requirePortal`, `requirePermission` → pages 401/403) **et** par chaque service de portail (`src/services/portals`).
+   (`requirePortal`, `requirePermission`, `requireFeature`) **et** par chaque service de portail (`src/services/portals`).
 3. **Isolation des données** — `MissionScope` (Naera : tout ; pro : son `BusinessAccount` ; particulier : son
    `PersonalCustomer` ; convoyeur : ses affectations) transformé en clause `WHERE` dans les dépôts : une mission d'une
    autre entreprise n'est jamais chargée, même avec son identifiant (404).
@@ -137,6 +140,23 @@ Toutes les routes exigent une session (401 sinon) et renvoient la **vue du porta
    (`src/core/access/projections.ts`) : aucun coût, marge, rémunération, coût de transport ni rentabilité.
 5. **Commandes** — le navigateur n'envoie qu'une demande ; trajet, transports et tarif sont **recalculés par le
    serveur**, et le rattachement (entreprise/particulier, auteur) vient de la session, jamais de la saisie.
+
+**Statuts HTTP (pages et API)** — convention stricte, vérifiée par `npm run test:e2e` sur le build de production :
+
+| Situation                                                                                           | Statut                                   |
+| --------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Aucune session valide                                                                               | **401**                                  |
+| Session valide mais permission absente (autre portail, rôle insuffisant, fonctionnalité hors offre) | **403**                                  |
+| Ressource d'un autre locataire, ou inexistante                                                      | **404** (on ne révèle pas son existence) |
+| Ressource autorisée                                                                                 | **200**                                  |
+
+Les pages protégées ne diffusent rien avant d'avoir vérifié les droits (pas de `loading.tsx` dans les portails) :
+c'est ce qui permet au serveur de poser le vrai statut. Les liens affichent un indicateur de chargement pendant la
+navigation.
+
+**Terminologie financière** — Portails professionnel et particulier : _dépenses_, _montant facturé_, _dépense moyenne
+par mission / par kilomètre_. Les termes _coût réel_, _coût interne_, _coût convoyeur_, _marge_ et _rentabilité_ sont
+réservés au back-office Naera (contrôlé par les tests sur le HTML rendu).
 
 **Plans et fonctionnalités** — `Plan`, `Feature`, `PlanFeature`, `Subscription`, `FeatureOverride`. Plans :
 `PRO_ESSENTIAL`, `PRO_PLUS`, `PRO_ANALYTICS`, `ENTERPRISE` (aucun prix codé, pas de Stripe). Fonctionnalités :
@@ -170,7 +190,7 @@ Voir [`.env.example`](.env.example). Toutes les clés sont lues **côté serveur
 
 Prisma 7 (générateur `prisma-client`, adaptateur `@prisma/adapter-pg`) sur **PostgreSQL**. Schéma : `prisma/schema.prisma`.
 
-Modèles : `User`, `Customer` (contact figé, historique), `PersonalCustomer`, `BusinessAccount`, `BusinessMember`,
+Modèles : `User`, `Customer` (**legacy**, plus alimenté), `PersonalCustomer`, `BusinessAccount`, `BusinessMember`,
 `BusinessAgency`, `CostCenter`, `DriverProfile`, `Vehicle`, `Mission`, `MissionAssignment`, `MissionOption`,
 `MissionCost`, `Quote`, `Invoice`, `TransportOption`, `MissionPhoto`, `MissionDocument`, `MissionSignature`,
 `MissionEvent`, `PricingSettings`, `PricingProfile`, `Package`, `ServiceOption`, `Plan`, `Feature`, `PlanFeature`,
@@ -178,8 +198,13 @@ Modèles : `User`, `Customer` (contact figé, historique), `PersonalCustomer`, `
 
 La migration `20260924160000_multi_portal_accounts` est **non destructive** : elle ajoute les nouvelles tables et
 colonnes, reprend les données existantes (rôles, convoyeurs et affectations, comptes entreprise et particuliers déduits
-des clients, options facturées), puis seulement retire `Mission.driverId` et `User.role`. `npm run db:seed` réinjecte
-le jeu de démonstration sans toucher aux données réelles.
+des clients, options facturées), puis seulement retire `Mission.driverId` et `User.role`. La migration
+`20260925090000_customer_snapshot_internal_notes` ajoute `Mission.customerSnapshot` (contact figé à la commande, repris
+depuis `Customer`) et `Mission.internalNotes` (notes Naera, séparées des consignes). `npm run db:seed` réinjecte le jeu
+de démonstration sans toucher aux données réelles.
+
+Sources de vérité, snapshots et données legacy (`Customer`, `PersonalCustomer`, `BusinessAccount`, contacts de mission),
+ainsi que le plan de suppression de `Customer` : **[docs/data-model.md](docs/data-model.md)**.
 
 ```bash
 docker compose up -d                                   # PostgreSQL 16 local
@@ -220,11 +245,26 @@ Numérotation des missions : `NAE-CV-AAAA-NNNN`, incrément atomique par année 
 - Installation : Chrome/Android propose l'installation ; sur iPhone, Safari → Partager → « Sur l'écran d'accueil »
   (HTTPS requis hors `localhost`).
 
+## Connexion de démonstration
+
+| Environnement                             | Comportement                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Développement (`npm run dev`)             | Active par défaut : l'accueil propose de choisir un profil. `NAERA_DEMO_AUTH="false"` la coupe.                                                                                                                                                                                                                                                  |
+| Production (`npm run build && npm start`) | **Désactivée par défaut** : toutes les pages protégées et l'API répondent 401. Elle ne s'active que si `NAERA_DEMO_AUTH="true"` (valeur exacte) **et** `NAERA_SESSION_SECRET` sont définis ; un avertissement est alors journalisé. Aucune autre valeur (`1`, `yes`…) ne l'active, et aucun secret de développement n'est utilisé en production. |
+
+Règle implémentée et testée dans `src/services/auth/demo-auth.ts`. Aucun fournisseur d'authentification réel n'est
+branché pour l'instant.
+
 ## Tests
 
 ```bash
-npm test
+npm test             # unitaires + intégration des services de portail
+npm run build && npm run test:e2e   # HTTP de bout en bout sur le build de production
 ```
+
+`test:e2e` démarre `next start` sur un stockage temporaire et vérifie : la convention 401/403/404/200 sur les pages et
+l'API pour chaque profil, et l'absence de tout champ interne (coût, marge, rentabilité, rémunération, notes internes)
+dans les réponses JSON et le HTML réellement renvoyés aux particuliers, professionnels et convoyeurs.
 
 Couverture actuelle (Vitest) : carburant, durée de mission, coût, TVA, marge, packages, arrondis, options et
 majorations (week-end, jours fériés), score transport, rentabilité, numérotation, progression terrain, scénario complet

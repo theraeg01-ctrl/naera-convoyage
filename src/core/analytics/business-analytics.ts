@@ -56,8 +56,8 @@ export interface MonthlySpend {
 export interface BasicAnalytics {
   missionCount: number;
   totalSpendHT: number;
-  averageCostPerMission: number | null;
-  averageCostPerKm: number | null;
+  averageSpendPerMission: number | null;
+  averageSpendPerKm: number | null;
   convoyedKm: number;
   monthly: MonthlySpend[];
 }
@@ -103,8 +103,8 @@ function computeBasic(booked: readonly CustomerMissionView[], today: string): Ba
   return {
     missionCount: current.length,
     totalSpendHT: spend,
-    averageCostPerMission: current.length > 0 ? roundMoney(spend / current.length) : null,
-    averageCostPerKm: km > 0 ? roundMoney(spend / km) : null,
+    averageSpendPerMission: current.length > 0 ? roundMoney(spend / current.length) : null,
+    averageSpendPerKm: km > 0 ? roundMoney(spend / km) : null,
     convoyedKm: sumKm(current.filter((mission) => DONE.includes(mission.status))),
     monthly: previousMonths(today, 6).map((m) => {
       const missions = booked.filter((mission) => inMonth(mission, m));

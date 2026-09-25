@@ -6,7 +6,7 @@ import { AccessDeniedError } from "@/core/access/permissions";
 import type { PriceLine } from "@/core/pricing/options";
 import type { VatBreakdown } from "@/core/pricing/vat";
 import { missionScopeFor } from "@/core/access/scope";
-import type { ContactPerson, CustomerInfo, MissionOwnership } from "@/core/mission/types";
+import type { ContactPerson, CustomerSnapshot, MissionOwnership } from "@/core/mission/types";
 import { isValidLocalDate, isValidTime } from "@/core/shared/calendar";
 import {
   FUEL_TYPES,
@@ -145,8 +145,8 @@ export async function quoteOrder(actor: Actor | null, input: unknown): Promise<U
   });
 }
 
-/** Contact figé sur la mission, lu dans l'annuaire (pas dans la saisie). */
-async function customerSnapshot(actor: CustomerActor): Promise<CustomerInfo> {
+/** Snapshot du contact, lu dans le compte (source de vérité) au moment de la commande. */
+async function snapshotOf(actor: CustomerActor): Promise<CustomerSnapshot> {
   const { directory } = await getAppRepositories();
   if (actor.kind === "BUSINESS") {
     const [view, user] = await Promise.all([
@@ -205,7 +205,7 @@ export async function placeOrder(
     const mission = await service.createFromRequest(
       toMissionRequest(order),
       {
-        customer: await customerSnapshot(actor),
+        customerSnapshot: await snapshotOf(actor),
         vehicle: { make: order.vehicle.make, model: order.vehicle.model, plate: order.vehicle.plate },
         contacts: { pickup: order.pickupContact, dropoff: order.dropoffContact },
         notes: order.notes,

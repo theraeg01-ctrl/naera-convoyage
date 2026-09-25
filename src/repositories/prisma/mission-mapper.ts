@@ -1,4 +1,4 @@
-import type { CustomerInfo, Mission, MissionEvent, VehicleInfo } from "@/core/mission/types";
+import type { CustomerSnapshot, Mission, MissionEvent, VehicleInfo } from "@/core/mission/types";
 import type { MissionPricing } from "@/core/pricing/mission-pricing";
 import type { DataMode, MissionRequest } from "@/core/simulation/types";
 import type { TransportOption } from "@/core/transport/types";
@@ -11,6 +11,7 @@ type NewMissionLike = NewMission;
 export const ACTIVE_ASSIGNMENT_STATUSES = ["PROPOSED", "ACCEPTED"] as const;
 
 export const MISSION_INCLUDE = {
+  /** LEGACY : lu uniquement pour les missions antérieures au snapshot (voir docs/data-model.md). */
   customer: true,
   vehicle: true,
   transportOptions: { orderBy: { rank: "asc" } },
@@ -48,7 +49,8 @@ function toTransportOption(row: MissionRow["transportOptions"][number]): Transpo
   };
 }
 
-function toCustomer(row: MissionRow["customer"]): CustomerInfo | null {
+/** LEGACY : snapshot reconstruit depuis l'ancienne table Customer (missions non migrées). */
+function legacyCustomerSnapshot(row: MissionRow["customer"]): CustomerSnapshot | null {
   if (!row) return null;
   return {
     type: row.type,
@@ -115,7 +117,8 @@ export function toDomainMission(row: MissionRow): Mission {
       postalCode: row.dropoffPostalCode,
       point: row.dropoffLat !== null && row.dropoffLng !== null ? { lat: row.dropoffLat, lng: row.dropoffLng } : null,
     },
-    customer: toCustomer(row.customer),
+    customerSnapshot:
+      (row.customerSnapshot as unknown as CustomerSnapshot | null) ?? legacyCustomerSnapshot(row.customer),
     ownership: {
       channel: row.channel,
       businessAccountId: row.businessAccountId,
@@ -159,6 +162,7 @@ export function toDomainMission(row: MissionRow): Mission {
     },
     events,
     notes: row.notes,
+    internalNotes: row.internalNotes,
   };
 }
 
@@ -196,7 +200,7 @@ export function toMissionCreateInput(
   reference: string,
   scheduledAt: Date,
 ): Prisma.MissionCreateInput {
-  const { pricing, route, customer, vehicle } = mission;
+  const { pricing, route, customerSnapshot, vehicle } = mission;
   const date = (iso: string | undefined) => (iso ? new Date(iso) : null);
   return {
     reference,
@@ -238,6 +242,9 @@ export function toMissionCreateInput(
     deliveredAt: date(mission.progress.deliveredAt),
     completedAt: date(mission.progress.completedAt),
     notes: mission.notes,
+    internalNotes: mission.internalNotes,
+    // Snapshot du contact porté par la mission ; la table legacy Customer n'est plus alimentée.
+    customerSnapshot: customerSnapshot ? (customerSnapshot as unknown as Prisma.InputJsonValue) : undefined,
     channel: mission.ownership.channel,
     businessAccount: mission.ownership.businessAccountId
       ? { connect: { id: mission.ownership.businessAccountId } }
@@ -262,19 +269,6 @@ export function toMissionCreateInput(
             driverProfileId: mission.assignment.driverProfileId,
             status: mission.assignment.status,
             assignedAt: new Date(mission.assignment.assignedAt),
-          },
-        }
-      : undefined,
-    customer: customer
-      ? {
-          create: {
-            type: customer.type,
-            firstName: customer.firstName ?? null,
-            lastName: customer.lastName ?? null,
-            companyName: customer.companyName ?? null,
-            phone: customer.phone ?? null,
-            email: customer.email ?? null,
-            address: customer.address ?? null,
           },
         }
       : undefined,

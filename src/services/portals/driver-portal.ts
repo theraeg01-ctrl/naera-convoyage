@@ -6,7 +6,12 @@ import { toDriverMissionView, type DriverMissionView } from "@/core/access/proje
 import { missionScopeFor } from "@/core/access/scope";
 import type { DriverProfile } from "@/core/accounts/types";
 import { sortMissionsBySchedule } from "@/core/mission/filters";
-import { fieldStepsView, type FieldStepView, type MissionActionId } from "@/core/mission/progress";
+import {
+  fieldStepsView,
+  missionActionDetails,
+  type FieldStepView,
+  type MissionActionId,
+} from "@/core/mission/progress";
 import type { MissionStatus } from "@/core/mission/types";
 import { run, type UseCaseResult } from "../result";
 import { assertDriver, getAppRepositories, getMissionService, today, type DriverActor } from "./common";
@@ -30,11 +35,19 @@ export interface DriverMissionList {
   upcoming: DriverMissionView[];
   done: DriverMissionView[];
   completedThisMonth: number;
+  /** Prochaine étape terrain que le convoyeur peut valider, par mission. */
+  nextSteps: Record<string, string>;
 }
 
 export async function listDriverMissions(actor: Actor | null): Promise<DriverMissionList> {
   assertDriver(actor, "missions.read");
-  const views = (await assignedMissions(actor)).map(toDriverMissionView);
+  const missions = await assignedMissions(actor);
+  const views = missions.map(toDriverMissionView);
+  const nextSteps: Record<string, string> = {};
+  for (const mission of missions) {
+    const [next] = allowedMissionActions(actor, mission);
+    if (next) nextSteps[mission.id] = missionActionDetails(next).label;
+  }
   const month = today().slice(0, 7);
   const byStatus = (statuses: readonly MissionStatus[]) => views.filter((view) => statuses.includes(view.status));
   const done = byStatus(DONE);
@@ -43,6 +56,7 @@ export async function listDriverMissions(actor: Actor | null): Promise<DriverMis
     upcoming: sortMissionsBySchedule(byStatus(UPCOMING), "asc"),
     done: sortMissionsBySchedule(done, "desc").slice(0, 10),
     completedThisMonth: done.filter((view) => view.scheduledDate.startsWith(month)).length,
+    nextSteps,
   };
 }
 

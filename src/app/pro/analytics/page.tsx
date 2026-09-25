@@ -1,51 +1,32 @@
-import { Download } from "lucide-react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { BarList, ColumnChart } from "@/components/charts/column-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Card, Section } from "@/components/ui/card";
-import { LockedFeature } from "@/components/ui/locked-feature";
+import { PlanDiscover } from "@/components/ui/plan-discover";
 import { VEHICLE_CATEGORY_LABELS } from "@/core/mission/types";
-import { hasFeature, lowestPlanWith, PLAN_LABELS, type FeatureKey } from "@/core/plans/features";
 import { formatEuro, formatKm } from "@/core/shared/format";
-import { requirePermission, requirePortal, withAccess } from "@/services/auth/guards";
-import { getProAnalytics, getProContext } from "@/services/portals/pro-portal";
+import { requireFeature, requirePermission, requirePortal, withAccess } from "@/services/auth/guards";
+import { getPlanOffer, getProAnalytics, getProContext } from "@/services/portals/pro-portal";
 import { formatMonthLong, formatMonthShort } from "@/utils/dates";
 
 export const metadata: Metadata = { title: "Analytics" };
 
-const planFor = (feature: FeatureKey) => {
-  const plan = lowestPlanWith(feature);
-  return plan ? PLAN_LABELS[plan] : null;
-};
-
 const compactEuro = (value: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(value);
 
+/** Analyse des dépenses du compte (montants facturés, jamais de coût Naera). */
 export default async function ProAnalyticsPage() {
   await connection();
   const actor = await requirePortal("pro");
   requirePermission(actor, "analytics.read");
   const { account } = await withAccess(() => getProContext(actor));
-
-  if (!hasFeature(account, "analytics_basic")) {
-    return (
-      <div>
-        <PageHeader title="Analytics" description="Suivez vos dépenses de convoyage." />
-        <LockedFeature
-          title="Analytics non inclus dans votre abonnement"
-          description="Dépenses mensuelles, coût moyen par mission et par kilomètre, kilomètres convoyés."
-          planLabel={planFor("analytics_basic")}
-        />
-      </div>
-    );
-  }
-
-  const analytics = await withAccess(() => getProAnalytics(actor));
+  requireFeature(account, "analytics_basic");
+  const [analytics, advancedOffer] = await withAccess(() =>
+    Promise.all([getProAnalytics(actor), getPlanOffer(actor, "analytics_advanced")]),
+  );
   const basic = analytics.basic;
-  const canExport = hasFeature(account, "csv_export");
 
   return (
     <div className="space-y-8">
@@ -53,29 +34,20 @@ export default async function ProAnalyticsPage() {
         title="Analytics"
         description={<span className="first-letter:uppercase">{formatMonthLong(analytics.month)}</span>}
         className="mb-0"
-        actions={
-          canExport ? (
-            <span className="inline-flex items-center gap-2 text-sm text-faint">
-              <Download className="size-4" aria-hidden />
-              Export CSV
-              <Badge tone="outline">Bientôt</Badge>
-            </span>
-          ) : null
-        }
       />
       {basic ? (
         <>
-          <section aria-label="Indicateurs du mois" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <section aria-label="Dépenses du mois" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile label="Missions confirmées" value={basic.missionCount} />
-            <StatTile label="Dépense" value={formatEuro(basic.totalSpendHT)} hint="HT" />
+            <StatTile label="Dépenses" value={formatEuro(basic.totalSpendHT)} hint="HT" />
             <StatTile
-              label="Coût moyen / mission"
-              value={basic.averageCostPerMission !== null ? formatEuro(basic.averageCostPerMission) : "—"}
+              label="Dépense moyenne par mission"
+              value={basic.averageSpendPerMission !== null ? formatEuro(basic.averageSpendPerMission) : "—"}
               hint="HT"
             />
             <StatTile
-              label="Coût moyen / km"
-              value={basic.averageCostPerKm !== null ? formatEuro(basic.averageCostPerKm, 2) : "—"}
+              label="Dépense moyenne par kilomètre"
+              value={basic.averageSpendPerKm !== null ? formatEuro(basic.averageSpendPerKm, 2) : "—"}
               hint={`${formatKm(basic.convoyedKm)} convoyés`}
             />
           </section>
@@ -83,7 +55,7 @@ export default async function ProAnalyticsPage() {
             <Card className="p-5">
               <ColumnChart
                 label="Dépenses mensuelles HT sur 6 mois"
-                series={[{ id: "spend", label: "Dépense HT", color: "--series-1" }]}
+                series={[{ id: "spend", label: "Dépenses HT", color: "--series-1" }]}
                 categories={basic.monthly.map((entry) => ({ key: entry.month, label: formatMonthShort(entry.month) }))}
                 values={{ spend: basic.monthly.map((entry) => entry.spendHT) }}
                 format={compactEuro}
@@ -93,11 +65,11 @@ export default async function ProAnalyticsPage() {
         </>
       ) : null}
 
-      <Section title="Analyse avancée">
-        {analytics.advanced ? (
+      {analytics.advanced ? (
+        <Section title="Analyse avancée">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="space-y-4 p-5">
-              <p className="font-semibold">Dépense par type de véhicule</p>
+              <p className="font-semibold">Dépenses par type de véhicule</p>
               <BarList
                 rows={analytics.advanced.spendByVehicleCategory.map((row) => ({
                   key: row.category,
@@ -109,7 +81,7 @@ export default async function ProAnalyticsPage() {
               />
             </Card>
             <Card className="space-y-4 p-5">
-              <p className="font-semibold">Dépense par collaborateur</p>
+              <p className="font-semibold">Dépenses par collaborateur</p>
               <BarList
                 rows={analytics.advanced.spendByUser.map((row) => ({
                   key: row.userId ?? "none",
@@ -126,14 +98,10 @@ export default async function ProAnalyticsPage() {
               ) : null}
             </Card>
           </div>
-        ) : (
-          <LockedFeature
-            title="Analyse avancée"
-            description="Répartition par véhicule et par collaborateur, délais de commande, rapports PDF."
-            planLabel={planFor("analytics_advanced")}
-          />
-        )}
-      </Section>
+        </Section>
+      ) : advancedOffer ? (
+        <PlanDiscover title="Analytics avancés" planLabel={advancedOffer.planLabel} features={advancedOffer.features} />
+      ) : null}
     </div>
   );
 }

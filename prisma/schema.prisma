@@ -224,9 +224,12 @@ model User {
   createdMissions  Mission[]         @relation("MissionCreatedBy")
 }
 
-/// Contact client figé sur une mission (nom, téléphone, e-mail au moment de la
-/// commande). Les comptes sont PersonalCustomer (particuliers) et BusinessAccount
-/// (entreprises) ; ce modèle historique est conservé pour ne perdre aucune donnée.
+/// LEGACY — NE PLUS UTILISER POUR DE NOUVELLES DONNÉES.
+/// Ancien « client » de la phase 0 : une ligne par mission, copie du contact.
+/// Remplacé par : PersonalCustomer (particulier), BusinessAccount (entreprise)
+/// et Mission.customerSnapshot (contact figé à la commande). Plus aucune
+/// écriture depuis la migration 20260925090000 ; lu uniquement en secours
+/// pour les missions non migrées. Suppression planifiée : docs/data-model.md.
 model Customer {
   id               String               @id @default(uuid())
   type             CustomerType
@@ -312,17 +315,24 @@ model Mission {
   /// Détail complet du tarif au moment de l'enregistrement.
   pricing Json
 
-  startedAt   DateTime?
-  inspectedAt DateTime?
-  drivingAt   DateTime?
-  deliveredAt DateTime?
-  completedAt DateTime?
-  notes       String?
+  startedAt     DateTime?
+  inspectedAt   DateTime?
+  drivingAt     DateTime?
+  deliveredAt   DateTime?
+  completedAt   DateTime?
+  /// Consignes opérationnelles (accès, clés…) : visibles du convoyeur et du client.
+  notes         String?
+  /// Notes internes Naera : jamais exposées aux portails client, pro ou convoyeur.
+  internalNotes String?
 
-  customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  vehicleId  String?
-  vehicle    Vehicle?  @relation(fields: [vehicleId], references: [id])
+  /// Contact client FIGÉ au moment de la commande (nom, téléphone, e-mail).
+  /// Historique : ne change pas si le client modifie ensuite ses coordonnées.
+  customerSnapshot Json?
+  /// LEGACY (voir Customer) : conservé pour les missions antérieures au snapshot.
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  vehicleId        String?
+  vehicle          Vehicle?  @relation(fields: [vehicleId], references: [id])
 
   /// Rattachement (isolation des données) : entreprise OU particulier, jamais les deux.
   channel            MissionChannel    @default(BACKOFFICE)
@@ -590,7 +600,7 @@ model PersonalCustomer {
   email            String?
   phone            String?
   address          String?
-  /// Client historique dont ce compte est issu (migration du modèle Customer).
+  /// LEGACY : trace de migration vers le client historique (Customer) d'origine.
   legacyCustomerId String?   @unique
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

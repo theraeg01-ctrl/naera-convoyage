@@ -15,6 +15,9 @@ export interface SessionPayload {
 
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 3600;
 
+/** Nom du cookie de session (httpOnly). */
+export const SESSION_COOKIE = "naera_session";
+
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64url");
 const decode = (value: string) => Buffer.from(value, "base64url").toString("utf8");
 

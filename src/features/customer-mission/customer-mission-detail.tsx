@@ -29,6 +29,8 @@ interface CustomerMissionDetailProps {
   /** Informations propres au portail (auteur, référence client…). */
   meta?: React.ReactNode;
   duplicateHref?: string;
+  /** « Montant facturé » (pro) ou « Prix » (particulier). */
+  priceTitle?: string;
 }
 
 /**
@@ -110,8 +112,14 @@ export function CustomerMissionDetail(props: CustomerMissionDetailProps) {
 
         {props.meta ? <Section title="Commande">{props.meta}</Section> : null}
 
+        {mission.instructions ? (
+          <Section title="Consignes">
+            <Card className="p-5 text-[15px] whitespace-pre-line">{mission.instructions}</Card>
+          </Section>
+        ) : null}
+
         <aside className="lg:sticky lg:top-8 lg:col-start-2 lg:row-span-9 lg:row-start-1 lg:self-start">
-          <Section title="Prix">
+          <Section title={props.priceTitle ?? "Prix"}>
             <QuoteSummary pricing={mission} />
           </Section>
         </aside>
