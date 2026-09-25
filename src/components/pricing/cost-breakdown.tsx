@@ -56,13 +56,13 @@ export function CostBreakdown({
         ))}
       </div>
       <figcaption className="sr-only">Répartition du prix de {formatEuro(totals.ht)} HT</figcaption>
-      <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
         {segments.map((segment) => (
-          <li key={segment.id} className="flex items-center gap-2.5 text-[15px]">
+          <li key={segment.id} className="flex min-w-0 items-center gap-2.5 text-[15px]">
             <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: segment.color }} />
             <span className="min-w-0 flex-1 truncate text-muted">{segment.label}</span>
             <span className="font-medium tabular">{formatEuro(Math.round(segment.amount))}</span>
-            <span className="w-11 text-right text-sm text-faint tabular">
+            <span className="w-11 shrink-0 text-right text-sm text-faint tabular">
               {total > 0 ? formatPercent((segment.amount / total) * 100) : "—"}
             </span>
           </li>
