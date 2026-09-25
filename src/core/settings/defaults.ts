@@ -60,7 +60,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   packages: [
     { id: "CITY", name: "City", minKm: 0, maxKm: 50, basePrice: 89, pricePerKm: 0 },
     { id: "LOCAL_PLUS", name: "Local+", minKm: 51, maxKm: 150, basePrice: 149, pricePerKm: 0 },
-    { id: "REGIONAL", name: "Regional", minKm: 151, maxKm: 300, basePrice: 249, pricePerKm: 0 },
+    { id: "REGIONAL", name: "Régional", minKm: 151, maxKm: 300, basePrice: 249, pricePerKm: 0 },
     { id: "FRANCE", name: "France", minKm: 301, maxKm: 500, basePrice: 349, pricePerKm: 0 },
     { id: "FRANCE_PLUS", name: "France+", minKm: 501, maxKm: 800, basePrice: 499, pricePerKm: 0 },
     {

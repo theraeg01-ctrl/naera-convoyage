@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeMissionPricing } from "../pricing/mission-pricing";
+import { computeMissionPricing, normalizeStoredPricing } from "../pricing/mission-pricing";
+import { describePricingDecision } from "../pricing/pricing-decision";
+import { normalizePackageName, normalizeSettings } from "../settings/normalize";
 import { DomainError } from "../shared/errors";
 import { defaultSelections, resolveSimulation } from "../simulation/resolve";
 import { parisLilleSimulation, testSettings } from "./fixtures";
@@ -62,11 +64,18 @@ describe("Scénario Paris → Lille", () => {
     expect(pricing.margin.markupRate).toBeCloseTo(47.05, 1);
   });
 
+  it("forfait Régional ajusté, prix final à la marge cible", () => {
+    const decision = describePricingDecision(pricing);
+    expect(decision.package).toMatchObject({ title: "Forfait Régional ajusté", price: 249, adjusted: true });
+    expect(decision.applied).toMatchObject({ price: 299, status: "TARGET_REACHED" });
+    expect(pricing.margin.grossMarginRate!).toBeGreaterThanOrEqual(pricing.marginTargets!.targetRatePercent!);
+  });
+
   it("garde le package quand il est rentable (marge fixe faible)", () => {
     const lowMargin = computeMissionPricing({ ...baseInput, marginOverride: { mode: "FIXED", amount: 30 } }, settings);
     expect(lowMargin.profitability.status).toBe("PROFITABLE");
     expect(lowMargin.basePrice).toBe(249);
-    expect(lowMargin.lines[0].label).toContain("Regional");
+    expect(lowMargin.lines[0].label).toContain("Régional");
   });
 
   it("n'accepte aucune donnée invalide", () => {
@@ -130,5 +139,37 @@ describe("Simulation complète Paris → Lille", () => {
   it("renvoie null sans itinéraire (saisie manuelle nécessaire)", () => {
     const withoutRoute = { ...simulation, routes: [] };
     expect(resolveSimulation(withoutRoute, defaultSelections(withoutRoute), settings)).toBeNull();
+  });
+});
+
+describe("Libellé du forfait Régional", () => {
+  it("nouveau libellé, identifiant technique inchangé", () => {
+    const regional = settings.packages.find((tier) => tier.id === "REGIONAL");
+    expect(regional?.name).toBe("Régional");
+    expect(normalizePackageName("Regional")).toBe("Régional");
+    expect(normalizePackageName("Local+")).toBe("Local+");
+  });
+
+  it("paramètres enregistrés avec l'ancien libellé : corrigés à la lecture", () => {
+    const stored = structuredClone(settings);
+    stored.packages = stored.packages.map((tier) => (tier.id === "REGIONAL" ? { ...tier, name: "Regional" } : tier));
+    const regional = normalizeSettings(stored).packages.find((tier) => tier.id === "REGIONAL");
+    expect(regional).toMatchObject({ id: "REGIONAL", name: "Régional", basePrice: 249 });
+  });
+
+  it("tarif de mission enregistré avec l'ancien libellé : libellés corrigés, montants inchangés", () => {
+    const current = computeMissionPricing({ ...baseInput, marginOverride: { mode: "FIXED", amount: 30 } }, settings);
+    const legacy = {
+      ...current,
+      package: { ...current.package, name: "Regional" },
+      lines: current.lines.map((line) =>
+        line.kind === "SERVICE" ? { ...line, label: "Convoyage — forfait Regional" } : line,
+      ),
+    };
+    const normalized = normalizeStoredPricing(legacy);
+    expect(normalized.package).toEqual({ id: "REGIONAL", name: "Régional", price: 249 });
+    expect(normalized.lines[0].label).toBe("Convoyage — forfait Régional");
+    expect(normalized.totals).toEqual(current.totals);
+    expect(normalized.basePrice).toBe(current.basePrice);
   });
 });

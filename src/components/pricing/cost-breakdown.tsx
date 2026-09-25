@@ -47,7 +47,7 @@ export function CostBreakdown({
         {visible.map((segment, index) => (
           <div
             key={segment.id}
-            title={`${segment.label} : ${formatEuro(Math.round(segment.amount))}`}
+            title={`${segment.label} : ${formatEuro(segment.amount, 0)}`}
             className={cn(
               "h-full min-w-1",
               index === 0 && "rounded-l-full",
@@ -63,7 +63,7 @@ export function CostBreakdown({
           <li key={segment.id} className="flex min-w-0 items-center gap-2.5 text-[15px]">
             <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: segment.color }} />
             <span className="min-w-0 flex-1 truncate text-muted">{segment.label}</span>
-            <span className="font-medium tabular">{formatEuro(Math.round(segment.amount))}</span>
+            <span className="font-medium tabular">{formatEuro(segment.amount, 0)}</span>
             <span className="w-11 shrink-0 text-right text-sm text-faint tabular">
               {total > 0 ? formatPercent((segment.amount / total) * 100) : "—"}
             </span>

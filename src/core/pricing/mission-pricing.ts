@@ -1,5 +1,6 @@
 import { assertNonNegative } from "../shared/errors";
 import { sumMoney } from "../shared/money";
+import { normalizePackageName } from "../settings/normalize";
 import type { AppSettings, FuelType, PackageTier, SelectableOptionId } from "../settings/types";
 import {
   calculateDriverCost,
@@ -74,9 +75,24 @@ export interface MissionPricing {
   profitability: ProfitabilityCheck;
 }
 
-/** Tarif enregistré par une version antérieure : indicateurs de marge recalculés, prix inchangés. */
+/**
+ * Tarif enregistré par une version antérieure : indicateurs de marge
+ * recalculés et ancien libellé de forfait corrigé. Les prix ne changent pas.
+ */
 export function normalizeStoredPricing(pricing: MissionPricing): MissionPricing {
-  return { ...pricing, margin: normalizeStoredMargin(pricing.margin, pricing.totals.ht, pricing.costs.total) };
+  const margin = normalizeStoredMargin(pricing.margin, pricing.totals.ht, pricing.costs.total);
+  const name = normalizePackageName(pricing.package.name);
+  if (name === pricing.package.name) return { ...pricing, margin };
+  return {
+    ...pricing,
+    margin,
+    package: { ...pricing.package, name },
+    lines: pricing.lines.map((line) =>
+      line.kind === "SERVICE"
+        ? { ...line, label: line.label.replace(`forfait ${pricing.package.name}`, `forfait ${name}`) }
+        : line,
+    ),
+  };
 }
 
 export function marginPolicyFromSettings(pricing: AppSettings["pricing"]): MarginPolicy {

@@ -14,7 +14,10 @@ interface ColumnChartProps {
   categories: { key: string; label: string }[];
   /** values[serieId][index de catégorie] */
   values: Record<string, number[]>;
+  /** Graduations de l'axe (souvent arrondies). */
   format: (value: number) => string;
+  /** Valeurs affichées (étiquette, infobulle, tableau accessible) : par défaut, format. */
+  valueFormat?: (value: number) => string;
   className?: string;
 }
 
@@ -33,7 +36,8 @@ function niceTicks(max: number, count = 4): number[] {
  * focus : infobulle par colonne ; tableau équivalent pour les lecteurs
  * d'écran. Rendu serveur, sans bibliothèque.
  */
-export function ColumnChart({ label, series, categories, values, format, className }: ColumnChartProps) {
+export function ColumnChart({ label, series, categories, values, format, valueFormat, className }: ColumnChartProps) {
+  const formatValue = valueFormat ?? format;
   const max = Math.max(0, ...series.flatMap((serie) => values[serie.id] ?? []));
   const ticks = niceTicks(max);
   const top = ticks[ticks.length - 1] || 1;
@@ -88,7 +92,7 @@ export function ColumnChart({ label, series, categories, values, format, classNa
                       >
                         {index === lastIndex && series.length === 1 && value > 0 ? (
                           <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 text-xs font-semibold whitespace-nowrap text-foreground tabular">
-                            {format(value)}
+                            {formatValue(value)}
                           </span>
                         ) : null}
                       </span>
@@ -102,7 +106,7 @@ export function ColumnChart({ label, series, categories, values, format, classNa
                           <span className="size-2 rounded-[2px]" style={{ background: `var(${serie.color})` }} />
                           {serie.label}
                         </span>
-                        <span className="font-semibold tabular">{format(values[serie.id]?.[index] ?? 0)}</span>
+                        <span className="font-semibold tabular">{formatValue(values[serie.id]?.[index] ?? 0)}</span>
                       </p>
                     ))}
                   </div>
@@ -139,7 +143,7 @@ export function ColumnChart({ label, series, categories, values, format, classNa
             <tr key={category.key}>
               <th scope="row">{category.label}</th>
               {series.map((serie) => (
-                <td key={serie.id}>{format(values[serie.id]?.[index] ?? 0)}</td>
+                <td key={serie.id}>{formatValue(values[serie.id]?.[index] ?? 0)}</td>
               ))}
             </tr>
           ))}

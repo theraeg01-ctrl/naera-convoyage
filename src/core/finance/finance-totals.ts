@@ -15,6 +15,13 @@ export const BOOKED_STATUSES: readonly MissionStatus[] = [
  * Agrégats financiers Naera d'un ensemble de missions (back-office uniquement).
  * Un seul calcul, réutilisé par le dashboard, la finance et les listes de
  * comptes : le taux affiché est toujours le taux de marge SUR VENTE.
+ *
+ * Arrondis : les montants de chaque mission sont déjà au centime ; les sommes
+ * sont seulement ramenées au centime pour neutraliser les erreurs de virgule
+ * flottante (aucun arrondi à l'euro). Le taux est calculé sur ces totaux
+ * exacts. Seul l'affichage peut arrondir (dashboard : à l'euro, finance : au
+ * centime), toujours avec formatEuro, et un montant affiché n'est jamais
+ * réutilisé dans un calcul.
  */
 export interface FinanceTotals {
   /** Missions engagées prises en compte. */

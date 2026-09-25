@@ -293,9 +293,13 @@ entreprises, refus par rôle et par plan, rattachement des commandes imposé par
   **prix cible** = coût interne ÷ (1 − 30 %) et **prix minimum rentable** = coût interne ÷ (1 − 10 %), arrondi à
   l'euro supérieur. Une marge de 30 % n'est pas une majoration de 30 % : pour 198 € de coût, le prix à 30 % de marge
   est 282,86 € HT (et non 257,40 €). Une marge brute fixe (€) reste possible.
-- **Contrôle de rentabilité** : le forfait (City, Local+, Regional, France, France+, Long Distance) est comparé au prix
-  cible et au prix minimum. Il n'est retenu que s'il couvre la marge cible ; sinon « Tarif package insuffisant pour
-  cette mission » ou « Package sous la marge cible », avec le prix recommandé.
+- **Contrôle de rentabilité** en deux temps : le forfait catalogue (City, Local+, Régional, France, France+,
+  Long Distance) est comparé au prix cible et au prix minimum ; il n'est retenu que s'il couvre la marge cible.
+  Sinon le forfait est **ajusté** (orange : « Forfait Régional ajusté », tarif catalogue, « Ce forfait seul est
+  inférieur à la marge cible ») et la rentabilité du **prix final appliqué** est jugée à part (vert : « Marge cible
+  atteinte »). La rentabilité du forfait catalogue n'est jamais présentée comme celle de la mission.
+- **Arrondis financiers** : calculs sur les montants exacts (au centime) ; l'arrondi n'intervient qu'à l'affichage,
+  avec le même helper `formatEuro` (dashboard à l'euro, finance au centime).
 - **Arrondi commercial** toujours vers le haut : exact, 5 €, 10 €, ou prix psychologique (…9 €).
 - **Majorations automatiques** : week-end (+20 %) ou jour férié (+30 %), sans cumul.
 - Toutes ces valeurs sont modifiables dans **Paramètres** (source unique de vérité).

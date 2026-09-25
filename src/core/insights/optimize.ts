@@ -1,4 +1,5 @@
 import type { MissionPricing } from "../pricing/mission-pricing";
+import { describePricingDecision } from "../pricing/pricing-decision";
 import type { RouteOption } from "../routing/types";
 import type { AppSettings } from "../settings/types";
 import { timeToMinutes } from "../shared/calendar";
@@ -42,7 +43,7 @@ function vtcComparison({ returnLeg }: InsightContext): MissionInsight | null {
   return {
     id: "return-vs-vtc",
     tone: "saving",
-    title: `Le ${modeName(selected)} économise ${formatEuro(Math.round(saving))} par rapport au VTC.`,
+    title: `Le ${modeName(selected)} économise ${formatEuro(saving, 0)} par rapport au VTC.`,
     impactEur: saving,
   };
 }
@@ -58,7 +59,7 @@ function cheaperReturn({ returnLeg, settings }: InsightContext): MissionInsight 
   return {
     id: "cheaper-return",
     tone: "saving",
-    title: `Retour en ${modeName(cheapest)} : ${formatEuro(Math.round(net))} d'économie nette.`,
+    title: `Retour en ${modeName(cheapest)} : ${formatEuro(net, 0)} d'économie nette.`,
     detail: extraMin > 0 ? `Trajet plus long de ${formatMinutes(extraMin)}, temps convoyeur inclus.` : undefined,
     impactEur: net,
   };
@@ -78,16 +79,13 @@ function returnShare({ returnLeg, pricing }: InsightContext): MissionInsight | n
 }
 
 function packageCheck({ pricing }: InsightContext): MissionInsight | null {
-  const { profitability } = pricing;
-  if (profitability.status === "PROFITABLE") return null;
-  const insufficient = profitability.status === "INSUFFICIENT";
+  const decision = describePricingDecision(pricing);
+  if (!decision.package.adjusted) return null;
   return {
     id: "package-check",
     tone: "warning",
-    title: `Le forfait ${pricing.package.name} (${formatEuro(pricing.package.price)} HT) est ${
-      insufficient ? "insuffisant" : "sous la marge cible"
-    }.`,
-    detail: `Prix conseillé : ${formatEuro(pricing.basePrice)} HT pour la prestation.`,
+    title: `${decision.package.title} : ${formatEuro(decision.package.price)} HT au catalogue.`,
+    detail: `${decision.package.detail} Prix mission appliqué : ${formatEuro(decision.applied.price)} HT — ${decision.applied.message.toLowerCase()}.`,
     impactEur: roundMoney(pricing.basePrice - pricing.package.price),
   };
 }
@@ -119,7 +117,7 @@ function noTollRoute({ routes, route, pricing, settings }: InsightContext): Miss
   return {
     id: "no-toll",
     tone: "saving",
-    title: `La route sans péage économiserait ${formatEuro(Math.round(net))}.`,
+    title: `La route sans péage économiserait ${formatEuro(net, 0)}.`,
     detail: `Trajet plus long de ${formatMinutes(extraMin)}, temps convoyeur inclus.`,
     impactEur: net,
   };

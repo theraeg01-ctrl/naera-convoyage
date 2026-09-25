@@ -11,7 +11,8 @@ import {
   normalizeStoredMargin,
   priceForMarginRate,
 } from "../pricing/margin";
-import { checkProfitability } from "../pricing/profitability";
+import { describePricingDecision } from "../pricing/pricing-decision";
+import { checkAppliedPrice, checkProfitability } from "../pricing/profitability";
 import { computeVat } from "../pricing/vat";
 import { DomainError } from "../shared/errors";
 import { testSettings } from "./fixtures";
@@ -212,6 +213,70 @@ describe("Contrôle de rentabilité", () => {
   it("package insuffisant sous le prix minimum", () => {
     const check = checkProfitability({ packagePrice: 149, targetPrice: 196, minimumPrice: 166 });
     expect(check.status).toBe("INSUFFICIENT");
-    expect(check.message).toBe("Tarif package insuffisant pour cette mission");
+    expect(check.message).toBe("Forfait catalogue sous le prix minimum rentable");
+  });
+});
+
+describe("Forfait catalogue ≠ prix final appliqué", () => {
+  const service = { id: "SERVICE", label: "Convoyage — tarif sur mesure", amount: 283, kind: "SERVICE" as const };
+  // Coût interne 198 €, marge cible 30 % sur vente → 282,86 € ; marge minimum 10 % → 220 €.
+  const adjusted = {
+    package: { id: "REGIONAL" as const, name: "Régional", price: 249 },
+    profitability: checkProfitability({ packagePrice: 249, targetPrice: 282.86, minimumPrice: 220 }),
+    basePrice: 283,
+    targetPrice: 282.86,
+    minimumPrice: 220,
+    lines: [service],
+  };
+
+  it("forfait ajusté (orange) mais prix appliqué qui atteint la marge cible (vert)", () => {
+    const decision = describePricingDecision(adjusted);
+    expect(decision.package).toMatchObject({
+      status: "BELOW_TARGET",
+      adjusted: true,
+      price: 249,
+      title: "Forfait Régional ajusté",
+      detail: "Ce forfait seul est inférieur à la marge cible.",
+    });
+    expect(decision.applied).toMatchObject({
+      price: 283,
+      status: "TARGET_REACHED",
+      message: "Marge cible atteinte",
+      excludesOptions: false,
+    });
+    // Le prix appliqué donne bien au moins 30 % de marge sur vente.
+    expect(grossMarginRate(283, 198)!).toBeGreaterThanOrEqual(30);
+  });
+
+  it("forfait sous le prix minimum : ajusté, la mission reste rentable au prix appliqué", () => {
+    const decision = describePricingDecision({
+      ...adjusted,
+      profitability: checkProfitability({ packagePrice: 149, targetPrice: 282.86, minimumPrice: 220 }),
+      package: { id: "LOCAL_PLUS" as const, name: "Local+", price: 149 },
+    });
+    expect(decision.package.detail).toBe("Ce forfait seul est inférieur au prix minimum rentable.");
+    expect(decision.applied.status).toBe("TARGET_REACHED");
+  });
+
+  it("forfait rentable : aucun ajustement, pas de second verdict trompeur", () => {
+    const decision = describePricingDecision({
+      ...adjusted,
+      profitability: checkProfitability({ packagePrice: 349, targetPrice: 282.86, minimumPrice: 220 }),
+      package: { id: "FRANCE" as const, name: "France", price: 349 },
+      basePrice: 349,
+    });
+    expect(decision.package).toMatchObject({ adjusted: false, title: "Forfait France rentable" });
+    expect(decision.applied.status).toBe("TARGET_REACHED");
+  });
+
+  it("le verdict du prix final dépend du prix appliqué, pas du forfait", () => {
+    expect(checkAppliedPrice({ appliedPrice: 282.86, targetPrice: 282.86, minimumPrice: 220 })).toBe("TARGET_REACHED");
+    expect(checkAppliedPrice({ appliedPrice: 260, targetPrice: 282.86, minimumPrice: 220 })).toBe("MINIMUM_REACHED");
+    expect(checkAppliedPrice({ appliedPrice: 219, targetPrice: 282.86, minimumPrice: 220 })).toBe("BELOW_MINIMUM");
+  });
+
+  it("signale les options facturées en plus du prix de la prestation", () => {
+    const option = { id: "PHOTO_REPORT", label: "Rapport photo", amount: 15, kind: "OPTION" as const };
+    expect(describePricingDecision({ ...adjusted, lines: [service, option] }).applied.excludesOptions).toBe(true);
   });
 });

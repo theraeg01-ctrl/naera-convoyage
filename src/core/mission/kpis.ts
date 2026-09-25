@@ -1,12 +1,11 @@
 import { financeTotals, type FinanceTotals } from "../finance/finance-totals";
-import { roundMoney } from "../shared/money";
 import type { Mission, MissionStatus } from "./types";
 
 const CONVOYED_STATUSES: readonly MissionStatus[] = ["DELIVERED", "COMPLETED"];
 
 /** Indicateurs de pilotage Naera du mois (back-office uniquement). */
 export interface DashboardKpis extends FinanceTotals {
-  /** Marge brute moyenne par mission engagée. */
+  /** Marge brute moyenne par mission engagée (valeur exacte, arrondie seulement à l'affichage). */
   averageGrossMargin: number | null;
   /** Kilomètres des missions livrées ou terminées du mois. */
   convoyedKm: number;
@@ -21,7 +20,7 @@ export function computeDashboardKpis(missions: readonly Mission[], month: string
     .reduce((total, mission) => total + mission.route.distanceKm, 0);
   return {
     ...totals,
-    averageGrossMargin: totals.missions > 0 ? roundMoney(totals.grossMarginHT / totals.missions) : null,
+    averageGrossMargin: totals.missions > 0 ? totals.grossMarginHT / totals.missions : null,
     convoyedKm: Math.round(convoyedKm),
   };
 }
